@@ -1,0 +1,161 @@
+/* FreeMap - dark "treasure map" theme. Palette mirrors the approved Pixso design. */
+:root{
+  --bg:#0a0f1c; --panel:#111a2c; --panel2:#0c1220;
+  --text:#E8EDF5; --muted:#8A94A8; --line:rgba(255,255,255,.08);
+  --gold:#FFD166; --gold2:#F4A259; --amber:#EE8F45; --cool:#5A6884;
+  --green:#37e08a;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+  background:var(--bg); color:var(--text); overflow:hidden;
+}
+
+/* MAP */
+#map{position:absolute;inset:0;background:#080d18;z-index:1}
+/* Invert the light OSM tiles into a dark, desaturated treasure map. Only the
+   tile pane is filtered, so pins and overlays keep their true colours. */
+.leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9) saturate(.6)}
+.leaflet-container{background:#080d18}
+.leaflet-control-attribution{background:rgba(10,16,28,.6)!important;color:#5a6478!important}
+.leaflet-control-attribution a{color:#7a8398!important}
+
+/* CURSOR FLASHLIGHT - warm light that follows the pointer, lights the dark map. */
+#flashlight{
+  position:fixed;width:560px;height:560px;left:0;top:0;margin:-280px 0 0 -280px;
+  border-radius:50%;pointer-events:none;z-index:400;opacity:0;transition:opacity .3s;
+  background:radial-gradient(circle,rgba(255,209,102,.18) 0%,rgba(255,209,102,.06) 38%,transparent 68%);
+  mix-blend-mode:screen;will-change:transform;
+}
+body.torch #flashlight{opacity:1}
+
+/* PINS (Leaflet divIcon) */
+.pin{position:relative;display:flex;flex-direction:column;align-items:center;
+  transform-origin:bottom center;transition:transform .18s ease}
+.pin .dot{width:44px;height:44px;border-radius:50% 50% 50% 8px;transform:rotate(45deg);
+  display:flex;align-items:center;justify-content:center;transition:box-shadow .2s}
+.pin .glyph{transform:rotate(-45deg);font-size:19px;line-height:1}
+.pin .ring{position:absolute;top:-11px;left:50%;margin-left:-33px;width:66px;height:66px;
+  border-radius:50%;border:2px solid rgba(255,209,102,.55);opacity:0;pointer-events:none}
+.pin .tag{margin-top:7px;font-size:11px;font-weight:600;background:rgba(10,16,28,.85);
+  padding:3px 8px;border-radius:8px;border:1px solid var(--line);white-space:nowrap;
+  color:#dbe3f0;pointer-events:none;opacity:0;transform:translateY(-4px);transition:.15s}
+.pin.awake{transform:scale(1.18) translateY(-4px);z-index:600}
+.pin.awake .tag{opacity:1;transform:none}
+.pin.awake .dot{box-shadow:0 0 30px 10px rgba(255,209,102,.5)}
+
+/* freshness colours */
+.pin.fresh .dot{background:linear-gradient(135deg,#FFE08A,#FFC24D);
+  box-shadow:0 0 24px 7px rgba(255,200,80,.5)}
+.pin.fresh .ring{opacity:1;animation:pulse 1.8s ease-out infinite}
+.pin.warm .dot{background:linear-gradient(135deg,#F6B96B,#EE8F45);
+  box-shadow:0 0 16px 4px rgba(240,150,70,.38)}
+.pin.cool .dot{background:linear-gradient(135deg,#7C8AA6,#5A6884);
+  box-shadow:0 0 9px 2px rgba(120,140,180,.28)}
+.pin.gone .dot{background:transparent;border:2px dashed #4a5468;box-shadow:none}
+.pin.gone .glyph{opacity:.45}
+
+@keyframes pulse{0%{transform:scale(.7);opacity:.8}100%{transform:scale(1.35);opacity:0}}
+/* loot-drop: bounce in from above */
+@keyframes drop{0%{transform:translateY(-40px) scale(.4);opacity:0}
+  60%{transform:translateY(4px) scale(1.08);opacity:1}100%{transform:none}}
+.pin.dropping{animation:drop .55s cubic-bezier(.2,.9,.3,1.4)}
+/* shatter: puff away when a listing is claimed */
+@keyframes shatter{0%{transform:scale(1);opacity:1;filter:blur(0)}
+  100%{transform:scale(1.6) rotate(12deg);opacity:0;filter:blur(3px)}}
+.pin.shattering{animation:shatter .6s ease-in forwards}
+
+/* TOP BAR */
+.topbar{position:fixed;top:0;left:0;right:0;height:72px;display:flex;align-items:center;
+  gap:16px;padding:0 22px;z-index:500;
+  background:linear-gradient(180deg,rgba(8,13,24,.96),rgba(8,13,24,.55));
+  border-bottom:1px solid var(--line);backdrop-filter:blur(8px)}
+.logo{font-size:22px;font-weight:800;letter-spacing:-.5px}
+.logo .m{color:var(--gold)}
+.sub{font-size:12px;color:var(--muted);margin-left:6px}
+.chips{display:flex;gap:8px;margin-left:14px}
+.chip{font-size:13px;padding:7px 13px;border-radius:999px;cursor:pointer;user-select:none;
+  background:rgba(255,255,255,.05);border:1px solid var(--line);color:#C7D0E0;transition:.15s}
+.chip:hover{background:rgba(255,255,255,.1)}
+.chip.on{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1a1205;
+  font-weight:700;border-color:transparent}
+.spacer{flex:1}
+.radius{display:flex;flex-direction:column;gap:5px;width:190px}
+.radius .lbl{font-size:11px;color:var(--muted);display:flex;justify-content:space-between}
+.radius .lbl b{color:var(--gold)}
+.radius input[type=range]{-webkit-appearance:none;height:6px;border-radius:3px;
+  background:rgba(255,255,255,.1);outline:none}
+.radius input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;
+  border-radius:50%;background:#fff;box-shadow:0 0 8px rgba(255,209,102,.8);cursor:pointer}
+.live{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;padding:8px 14px;
+  border-radius:999px;background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.3);color:#5fe39a}
+.blip{width:8px;height:8px;border-radius:50%;background:var(--green);
+  box-shadow:0 0 10px 2px rgba(55,224,138,.8);animation:blink 1.6s infinite}
+@keyframes blink{50%{opacity:.35}}
+
+/* LISTING CARD */
+.card{position:fixed;top:96px;left:50%;transform:translateX(-50%) translateY(12px);
+  width:340px;background:var(--panel);border:1px solid rgba(255,209,102,.2);border-radius:20px;
+  overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.6);z-index:550;opacity:0;
+  pointer-events:none;transition:.22s}
+.card.open{opacity:1;pointer-events:auto;transform:translateX(-50%)}
+.card .photo{height:190px;background:linear-gradient(135deg,#2a3550,#1a2338) center/cover no-repeat;
+  position:relative;display:flex;align-items:center;justify-content:center;font-size:56px}
+.card .free{position:absolute;top:12px;left:12px;background:linear-gradient(135deg,var(--gold),var(--gold2));
+  color:#1a1205;font-weight:800;font-size:12px;padding:5px 12px;border-radius:999px;letter-spacing:.5px}
+.card .close{position:absolute;top:12px;right:52px;width:36px;height:36px;border-radius:50%;
+  background:rgba(10,16,28,.7);border:1px solid var(--line);color:#c7d0e0;font-size:18px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer}
+.card .heart{position:absolute;top:12px;right:12px;width:36px;height:36px;border-radius:50%;
+  background:rgba(10,16,28,.7);display:flex;align-items:center;justify-content:center;font-size:16px;
+  border:1px solid var(--line);cursor:pointer}
+.card .cbody{padding:16px 18px 18px}
+.card .ctitle{font-size:18px;font-weight:700;line-height:1.25;margin-bottom:8px}
+.card .meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-bottom:6px;flex-wrap:wrap}
+.card .hot{color:#FFB870;font-weight:700}
+.card .loc{font-size:13px;color:#C7D0E0;margin-bottom:14px}
+.card .cta{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;
+  border-radius:12px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1a1205;
+  font-weight:800;font-size:15px;text-decoration:none}
+.card .note{text-align:center;font-size:11px;color:#7A8398;margin-top:10px}
+
+/* STASH */
+.stash{position:fixed;top:72px;right:0;bottom:0;width:296px;padding:20px;z-index:520;
+  background:linear-gradient(180deg,rgba(12,18,32,.96),rgba(10,15,26,.98));
+  border-left:1px solid var(--line);transform:translateX(100%);transition:transform .25s}
+.stash.open{transform:none}
+.stash .sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.stash .sh h3{font-size:16px;font-weight:800}
+.scount{font-size:12px;color:var(--gold);background:rgba(255,209,102,.12);padding:3px 10px;border-radius:999px}
+.stash .empty{color:var(--muted);font-size:13px;line-height:1.5;margin-top:30px;text-align:center}
+.sitem{display:flex;gap:12px;padding:12px;border-radius:14px;background:rgba(255,255,255,.03);
+  border:1px solid var(--line);margin-bottom:12px;cursor:pointer;position:relative}
+.sitem:hover{border-color:rgba(255,209,102,.3)}
+.sthumb{width:52px;height:52px;border-radius:10px;background:linear-gradient(135deg,#2a3550,#1a2338) center/cover;
+  display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.si-t{font-size:13px;font-weight:700;line-height:1.3;padding-right:16px}
+.si-m{font-size:11px;color:var(--muted);margin-top:3px}
+.si-x{position:absolute;top:8px;right:10px;color:#6a7488;font-size:14px;cursor:pointer}
+.si-x:hover{color:#e06a6a}
+/* stash toggle button (floating) */
+.stashbtn{position:fixed;top:84px;right:20px;z-index:530;padding:9px 15px;border-radius:999px;
+  background:var(--panel);border:1px solid rgba(255,209,102,.25);color:var(--text);font-weight:700;
+  font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px}
+.stashbtn .n{background:var(--gold);color:#1a1205;border-radius:999px;padding:1px 8px;font-size:12px}
+
+/* LEGEND + COUNT */
+.legend{position:fixed;bottom:22px;left:22px;background:rgba(10,16,28,.85);border:1px solid var(--line);
+  border-radius:14px;padding:14px 16px;backdrop-filter:blur(6px);z-index:500}
+.legend h4{font-size:11px;color:var(--muted);margin-bottom:10px;letter-spacing:.6px;text-transform:uppercase}
+.lrow{display:flex;align-items:center;gap:10px;font-size:12px;margin-bottom:7px;color:#C7D0E0}
+.lrow:last-child{margin-bottom:0}
+.sw{width:12px;height:12px;border-radius:50%}
+.count{position:fixed;bottom:30px;left:210px;font-size:13px;color:var(--muted);z-index:500}
+.count b{color:var(--gold);font-size:15px}
+
+/* toast for live drops */
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);z-index:560;
+  background:var(--panel);border:1px solid rgba(255,209,102,.3);border-radius:999px;padding:10px 18px;
+  font-size:13px;font-weight:600;opacity:0;transition:.3s;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.toast.show{opacity:1;transform:translateX(-50%)}

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FreeMap · Vancouver free stuff, live</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="map"></div>
+  <div id="flashlight"></div>
+
+  <div class="topbar">
+    <div><span class="logo">Free<span class="m">Map</span></span><span class="sub">Vancouver · free stuff, live</span></div>
+    <div class="chips" id="chips">
+      <div class="chip on" data-cat="all">All finds</div>
+      <div class="chip" data-cat="furniture">🪑 Furniture</div>
+      <div class="chip" data-cat="electronics">🖥️ Electronics</div>
+      <div class="chip" data-cat="materials">🪵 Materials</div>
+      <div class="chip" data-cat="boxes">📦 Boxes</div>
+      <div class="chip" data-cat="bike">🚲 Bikes</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="radius">
+      <div class="lbl"><span>Search radius</span><b id="radiusLabel">10 km</b></div>
+      <input type="range" id="radius" min="1" max="25" value="10">
+    </div>
+    <div class="live"><span class="blip"></span>Live</div>
+  </div>
+
+  <button class="stashbtn" id="stashBtn">🎒 Stash <span class="n" id="stashN">0</span></button>
+
+  <aside class="stash" id="stash">
+    <div class="sh"><h3>🎒 Your Stash</h3><span class="scount" id="stashCount">0 saved</span></div>
+    <div id="stashList"></div>
+  </aside>
+
+  <div class="card" id="card">
+    <div class="photo" id="cardPhoto">
+      <span id="cardGlyph">🎁</span>
+      <div class="free">FREE</div>
+      <div class="heart" id="cardHeart" title="Save to stash">🤍</div>
+      <div class="close" id="cardClose" title="Close">×</div>
+    </div>
+    <div class="cbody">
+      <div class="ctitle" id="cardTitle">—</div>
+      <div class="meta"><span class="hot" id="cardAge">🔥 just now</span><span>·</span><span>first come, first served</span></div>
+      <div class="loc" id="cardLoc">—</div>
+      <a class="cta" id="cardCta" href="#" target="_blank" rel="noopener">Grab it on Craigslist →</a>
+      <div class="note">Opens the original post · reply isn't automated</div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <h4>Freshness</h4>
+    <div class="lrow"><span class="sw" style="background:#FFC24D;box-shadow:0 0 8px #FFC24D"></span>Just dropped</div>
+    <div class="lrow"><span class="sw" style="background:#EE8F45"></span>A few hours old</div>
+    <div class="lrow"><span class="sw" style="background:#5A6884"></span>Getting stale</div>
+    <div class="lrow"><span class="sw" style="border:1px dashed #4a5468"></span>Likely gone</div>
+  </div>
+  <div class="count"><b id="countN">0</b> free finds live in view</div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
