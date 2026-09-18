@@ -3,3 +3,5 @@ __pycache__/
 *.db
 server.log
 .pytest_cache/
+.vercel/
+.vercel

@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "api/finds.py": { "includeFiles": "{craigslist,classify}.py" }
+  },
+  "rewrites": [
+    { "source": "/", "destination": "/static/index.html" }
+  ]
+}

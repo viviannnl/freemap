@@ -1,74 +1,85 @@
 /* FreeMap frontend: a live, animated treasure map of Vancouver free stuff.
  *
- * The backend hands us the full set of drawable finds every poll. We diff that
- * set against what's on the map to decide what animates:
- *   - an id we haven't drawn  -> loot-drop (bounce in) + toast
- *   - a find whose status is "gone" -> shatter, then remove
- *   - everything else         -> keep, just refresh its freshness class
- * Category chips and the radius slider filter which finds are eligible to draw.
+ * The server is stateless - it just returns the current set of free postings.
+ * All the liveliness is computed here by diffing successive polls:
+ *   - an id we've never seen        -> loot-drop (bounce in) + toast, first_seen=now
+ *   - an id that dropped out of the crawl -> shatter, then remove ("gone")
+ *   - freshness colour              -> age since first_seen (fresh/warm/cool)
+ * first_seen lives in localStorage so freshness survives reloads. It's when THIS
+ * browser first saw a posting, not the true Craigslist post time - so the UI says
+ * "spotted", not "posted".
  */
 
-const POLL_MS = 20000;           // how often the browser re-polls /api/finds
+const POLL_MS = 20000;
+const FRESH_MS = 30 * 60 * 1000;   // < 30 min -> just dropped (gold, pulsing)
+const WARM_MS = 3 * 60 * 60 * 1000; // < 3 h -> a few hours old (amber); older -> cool
+const SEEN_TTL_MS = 24 * 60 * 60 * 1000; // forget postings unseen this long
+
 const state = {
-  markers: new Map(),            // id -> {marker, find}
-  finds: new Map(),              // id -> find (latest from server)
+  markers: new Map(),   // id -> {marker, find}
+  finds: new Map(),     // id -> find (lookup cache for card/stash)
+  lastLive: [],         // most recent crawl result (drives reflow on filter change)
+  crawlIds: new Set(),  // ids present in the most recent crawl (present vs vanished)
   cat: 'all',
   radiusKm: 10,
   center: { lat: 49.2606, lon: -123.1140 },
   first: true,
+  firstDone: false,
   stash: loadStash(),
   ring: null,
 };
 
-/* ---- map ---- */
-const map = L.map('map', { zoomControl: false, attributionControl: true })
-  .setView([state.center.lat, state.center.lon], 12);
-L.control.zoom({ position: 'bottomright' }).addTo(map);
-// Key-free OpenStreetMap tiles; CSS inverts them to a dark "treasure map" (see
-// .leaflet-tile-pane in style.css). Avoids the API key CARTO's dark basemap now needs.
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap', maxZoom: 19,
-}).addTo(map);
-
-/* ---- helpers ---- */
-function haversineKm(a, b, c, d) {
-  const R = 6371, r = Math.PI / 180;
-  const dp = (c - a) * r, dl = (d - b) * r;
-  const x = Math.sin(dp / 2) ** 2 +
-    Math.cos(a * r) * Math.cos(c * r) * Math.sin(dl / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(x));
-}
-function distKm(f) {
-  return haversineKm(state.center.lat, state.center.lon, f.lat, f.lon);
-}
-// Craigslist geocodes many free posts to the same neighbourhood centroid, so
-// pins stack. Fan them out by a small, deterministic per-id offset (~<90 m) for
-// display only - the card still reports the true distance from f.lat/lon.
-function jittered(f) {
-  let h = 0;
-  for (const ch of f.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  const ang = (h % 360) * Math.PI / 180;
-  const rad = 0.0002 + ((h >> 9) % 100) / 100 * 0.0006;  // ~20-90 m
-  return [f.lat + rad * Math.cos(ang), f.lon + rad * Math.sin(ang)];
+/* ---- first-seen store (localStorage) ---- */
+function loadSeen() { try { return JSON.parse(localStorage.getItem('freemap.seen') || '{}'); } catch { return {}; } }
+function saveSeen() { localStorage.setItem('freemap.seen', JSON.stringify(seen)); }
+let seen = loadSeen();
+function ageMs(id, now) { return now - (seen[id] || now); }
+function statusOf(id, now) {
+  const a = ageMs(id, now);
+  return a < FRESH_MS ? 'fresh' : a < WARM_MS ? 'warm' : 'cool';
 }
 function ageText(f) {
   if (f.status === 'gone') return '💨 likely gone';
   const m = f.age_min;
   if (m < 5) return '🔥 just spotted';
   if (m < 60) return `🔥 spotted ${m} min ago`;
-  const h = Math.round(m / 60);
-  return `spotted ${h}h ago`;
+  return `spotted ${Math.round(m / 60)}h ago`;
 }
+
+/* ---- map ---- */
+const map = L.map('map', { zoomControl: false }).setView([state.center.lat, state.center.lon], 12);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+// Key-free OpenStreetMap tiles; CSS inverts them to a dark "treasure map".
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap', maxZoom: 19,
+}).addTo(map);
+
+/* ---- geometry ---- */
+function haversineKm(a, b, c, d) {
+  const R = 6371, r = Math.PI / 180;
+  const dp = (c - a) * r, dl = (d - b) * r;
+  const x = Math.sin(dp / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin(dl / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+function distKm(f) { return haversineKm(state.center.lat, state.center.lon, f.lat, f.lon); }
 function eligible(f) {
   if (state.cat !== 'all' && f.category !== state.cat) return false;
   return distKm(f) <= state.radiusKm;
+}
+// Craigslist geocodes many free posts to the same neighbourhood centroid, so pins
+// stack. Fan them out by a small deterministic per-id offset (~<90 m), display only.
+function jittered(f) {
+  let h = 0;
+  for (const ch of f.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const ang = (h % 360) * Math.PI / 180;
+  const rad = 0.0002 + ((h >> 9) % 100) / 100 * 0.0006;
+  return [f.lat + rad * Math.cos(ang), f.lon + rad * Math.sin(ang)];
 }
 
 /* ---- pin element ---- */
 function pinIcon(f) {
   const shortTitle = f.title.length > 22 ? f.title.slice(0, 21) + '…' : f.title;
-  const tag = f.status === 'gone' ? 'gone'
-    : (f.age_min < 60 ? `${f.age_min}m` : `${Math.round(f.age_min / 60)}h`);
+  const tag = f.age_min < 60 ? `${f.age_min}m` : `${Math.round(f.age_min / 60)}h`;
   return L.divIcon({
     className: '',
     html: `<div class="pin ${f.status}" data-id="${f.id}">
@@ -82,13 +93,20 @@ function pinIcon(f) {
 
 /* ---- diff / render ---- */
 function render(finds) {
-  const next = new Map();
-  // Gone finds are deliberately excluded from the draw set: that drops them into
-  // the removal loop below, where they shatter instead of rendering as a pin.
+  const now = Date.now();
+  state.lastLive = finds;
+  state.crawlIds = new Set(finds.map(f => f.id));
+  // remember first sight + compute freshness for everything in this crawl
   finds.forEach(f => {
+    if (!seen[f.id]) seen[f.id] = now;
+    f.age_min = Math.round(ageMs(f.id, now) / 60000);
+    f.status = statusOf(f.id, now);
     state.finds.set(f.id, f);
-    if (eligible(f) && f.status !== 'gone') next.set(f.id, f);
   });
+  saveSeen();
+
+  const next = new Map();
+  finds.forEach(f => { if (eligible(f)) next.set(f.id, f); });
 
   // add or update
   next.forEach((f, id) => {
@@ -98,7 +116,7 @@ function render(finds) {
       marker.on('click', () => openCard(id));
       state.markers.set(id, { marker, find: f });
       const el = marker._icon && marker._icon.querySelector('.pin');
-      if (el && !state.first) { el.classList.add('dropping'); }
+      if (el && !state.first) el.classList.add('dropping');
     } else if (existing.find.status !== f.status) {
       existing.marker.setIcon(pinIcon(f));   // freshness changed -> recolour
       existing.find = f;
@@ -108,14 +126,13 @@ function render(finds) {
     }
   });
 
-  // remove finds no longer eligible/present; shatter the ones that went "gone"
+  // remove markers no longer drawn. If the id vanished from the crawl entirely
+  // it was claimed -> shatter; if it's merely filtered out, remove quietly.
   state.markers.forEach((m, id) => {
-    const f = next.get(id);
-    if (f) return;
-    const serverFind = state.finds.get(id);
-    const goneVisible = serverFind && serverFind.status === 'gone' && eligible(serverFind);
+    if (next.has(id)) return;
+    const vanished = !state.crawlIds.has(id);
     const el = m.marker._icon && m.marker._icon.querySelector('.pin');
-    if (goneVisible && el) {
+    if (vanished && el) {
       el.classList.add('shattering');
       setTimeout(() => { map.removeLayer(m.marker); state.markers.delete(id); }, 600);
     } else {
@@ -126,23 +143,31 @@ function render(finds) {
 
   document.getElementById('countN').textContent = next.size;
   state.first = false;
+  pruneSeen(now);
 }
 
-let firstCountForToast = 0;
+function pruneSeen(now) {
+  let changed = false;
+  for (const id of Object.keys(seen)) {
+    if (!state.crawlIds.has(id) && now - seen[id] > SEEN_TTL_MS) { delete seen[id]; changed = true; }
+  }
+  if (changed) saveSeen();
+}
+
 async function poll() {
   try {
     const r = await fetch('/api/finds');
     const data = await r.json();
     if (data.center) state.center = data.center;
     const prevIds = new Set(state.markers.keys());
-    render(data.finds);
-    // toast for genuinely new drops (not the initial paint)
+    render(data.finds || []);
     const newOnes = [...state.markers.keys()].filter(id => !prevIds.has(id));
-    if (!state.firstDone) { state.firstDone = true; }
+    if (!state.firstDone) state.firstDone = true;
     else if (newOnes.length) {
       const f = state.finds.get(newOnes[0]);
-      toast(`${f.glyph} New drop: ${f.title.slice(0, 30)}`);
+      if (f) toast(`${f.glyph} New drop: ${f.title.slice(0, 30)}`);
     }
+    renderStash();
   } catch (e) { console.warn('poll failed', e); }
 }
 
@@ -160,18 +185,14 @@ document.getElementById('chips').addEventListener('click', e => {
   const chip = e.target.closest('.chip'); if (!chip) return;
   document.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === chip));
   state.cat = chip.dataset.cat;
-  reflow();
+  render(state.lastLive);
 });
 const radiusInput = document.getElementById('radius');
 radiusInput.addEventListener('input', () => {
   state.radiusKm = +radiusInput.value;
   document.getElementById('radiusLabel').textContent = `${state.radiusKm} km`;
-  drawRing(); reflow();
+  drawRing(); render(state.lastLive);
 });
-function reflow() {
-  // Re-evaluate eligibility against current filters without a network round-trip.
-  render([...state.finds.values()]);
-}
 
 /* ---- listing card ---- */
 const card = document.getElementById('card');
@@ -194,10 +215,7 @@ document.getElementById('cardClose').onclick = () => card.classList.remove('open
 document.getElementById('cardHeart').onclick = () => { if (cardId) toggleStash(cardId); };
 
 /* ---- stash (localStorage) ---- */
-function loadStash() {
-  try { return JSON.parse(localStorage.getItem('freemap.stash') || '[]'); }
-  catch { return []; }
-}
+function loadStash() { try { return JSON.parse(localStorage.getItem('freemap.stash') || '[]'); } catch { return []; } }
 function saveStash() { localStorage.setItem('freemap.stash', JSON.stringify(state.stash)); }
 function inStash(id) { return state.stash.some(s => s.id === id); }
 function toggleStash(id) {
@@ -217,8 +235,9 @@ function renderStash() {
   }
   list.innerHTML = state.stash.map(s => {
     const live = state.finds.get(s.id);
-    const meta = live ? (live.status === 'gone' ? '<span style="color:#e06a6a">💨 likely gone</span>'
-      : ageText(live)) : 'saved';
+    const goneNow = live && !state.crawlIds.has(s.id);
+    const meta = goneNow ? '<span style="color:#e06a6a">💨 likely gone</span>'
+      : (live ? ageText(live) : 'saved');
     const bg = s.thumb ? `style="background-image:url('${s.thumb}')"` : '';
     return `<div class="sitem" data-id="${s.id}">
       <div class="sthumb" ${bg}>${s.thumb ? '' : s.glyph}</div>
@@ -229,21 +248,19 @@ function renderStash() {
 document.getElementById('stashList').addEventListener('click', e => {
   const x = e.target.closest('.si-x');
   if (x) { toggleStash(x.dataset.x); return; }
-  const item = e.target.closest('.sitem');
-  if (item) {
-    const f = state.finds.get(item.dataset.id);
-    if (f) { map.setView([f.lat, f.lon], 15); openCard(item.dataset.id); }
-    else window.open(state.stash.find(s => s.id === item.dataset.id).url, '_blank');
-  }
+  const item = e.target.closest('.sitem'); if (!item) return;
+  const f = state.finds.get(item.dataset.id);
+  if (f) { map.setView([f.lat, f.lon], 15); openCard(item.dataset.id); }
+  else { const s = state.stash.find(s => s.id === item.dataset.id); if (s) window.open(s.url, '_blank'); }
 });
-const stashPanel = document.getElementById('stash');
-document.getElementById('stashBtn').onclick = () => stashPanel.classList.toggle('open');
+document.getElementById('stashBtn').onclick = () => document.getElementById('stash').classList.toggle('open');
 
 /* ---- cursor flashlight ---- */
 const torch = document.getElementById('flashlight');
 let mx = 0, my = 0, torchQueued = false;
-document.getElementById('map').addEventListener('mouseenter', () => document.body.classList.add('torch'));
-document.getElementById('map').addEventListener('mouseleave', () => {
+const mapEl = document.getElementById('map');
+mapEl.addEventListener('mouseenter', () => document.body.classList.add('torch'));
+mapEl.addEventListener('mouseleave', () => {
   document.body.classList.remove('torch');
   document.querySelectorAll('.pin.awake').forEach(p => p.classList.remove('awake'));
 });
@@ -260,8 +277,7 @@ function wakePins() {
     if (!el) return;
     const r = el.getBoundingClientRect();
     const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-    const near = Math.hypot(cx - mx, cy - my) < R;
-    el.classList.toggle('awake', near);
+    el.classList.toggle('awake', Math.hypot(cx - mx, cy - my) < R);
   });
 }
 

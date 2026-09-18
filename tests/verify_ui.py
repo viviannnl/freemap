@@ -9,10 +9,11 @@ Run: ./.venv/bin/python tests/verify_ui.py
 Exits non-zero if any check fails.
 """
 
+import os
 import sys
 from playwright.sync_api import sync_playwright
 
-URL = "http://127.0.0.1:5001/"
+URL = os.getenv("FREEMAP_URL", "http://127.0.0.1:5001/")
 checks = []
 
 
@@ -94,9 +95,8 @@ with sync_playwright() as p:
       const entry = [...state.markers.entries()].find(([id]) => !id.startsWith('TEST_'));
       if (!entry) return false;
       const [id, m] = entry;
-      const gone = {...state.finds.get(id), status: 'gone'};
-      state.finds.set(id, gone);
-      render([...state.finds.values()].filter(x => x.id !== id).concat(gone));
+      // A crawl that no longer contains this id = it was claimed -> shatter.
+      render(state.lastLive.filter(x => x.id !== id));
       const el = m.marker._icon && m.marker._icon.querySelector('.pin');
       return !!el && el.classList.contains('shattering');
     }""")
