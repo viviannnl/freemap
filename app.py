@@ -10,7 +10,7 @@ serverless function (see api/finds.py) with no background thread or database.
 
 import logging
 
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory
 
 import craigslist
 from classify import classify
@@ -29,6 +29,7 @@ def crawl_payload():
         finds.append({
             "id": r["cl_id"], "title": r["title"], "url": r["url"],
             "thumb": r["thumb"], "lat": r["lat"], "lon": r["lon"],
+            "neighborhood": r.get("neighborhood"),
             "category": category, "glyph": glyph,
         })
     return {"center": {"lat": craigslist.CENTER_LAT, "lon": craigslist.CENTER_LON},
@@ -38,6 +39,12 @@ def crawl_payload():
 @app.route("/api/finds")
 def finds():
     return jsonify(crawl_payload())
+
+
+@app.route("/api/posted")
+def posted():
+    """Lazy: the true posted time for one posting (see craigslist.fetch_posted)."""
+    return jsonify({"posted": craigslist.fetch_posted(request.args.get("u", ""))})
 
 
 @app.route("/")

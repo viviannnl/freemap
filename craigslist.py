@@ -35,6 +35,8 @@ than raises when a field is missing.
 
 import logging
 import math
+import re
+from urllib.parse import urlparse
 
 import requests
 
@@ -96,6 +98,23 @@ def _geo(item):
         return None, None
 
 
+def _neighborhood(item, locs):
+    """Human place name for a posting, from the geocode's index into the feed's
+    locationDescriptions table (e.g. "1:1~lat~lon" -> locs[1] == 'mount pleasant').
+    """
+    if not locs:
+        return None
+    raw = item[4] if len(item) > 4 else None
+    if not isinstance(raw, str) or ":" not in raw:
+        return None
+    try:
+        idx = int(raw.split("~")[0].split(":")[1])
+        name = locs[idx]
+        return name.title() if isinstance(name, str) and name else None
+    except (IndexError, ValueError):
+        return None
+
+
 def _thumb(item, size="600x450"):
     """First image as a real thumbnail URL, or None."""
     ids = _tag(item, TAG_IMAGES)
@@ -113,7 +132,7 @@ def _title(item):
     return "(untitled)"
 
 
-def parse_item(item):
+def parse_item(item, locs=None):
     """One raw API item -> dict, or None if it lacks the fields we need."""
     try:
         cl_id = str(item[0])
@@ -133,6 +152,7 @@ def parse_item(item):
         "url": f"https://www.craigslist.org/view/d/{slug or 'listing'}/{url_id}",
         "title": _title(item),
         "thumb": _thumb(item),
+        "neighborhood": _neighborhood(item, locs),
         "lat": lat,
         "lon": lon,
     }
@@ -164,12 +184,42 @@ def crawl(lat=None, lon=None, radius_km=None):
     resp.raise_for_status()
     data = resp.json().get("data", {})
     items = data.get("items", [])
-    parsed = [p for p in (parse_item(raw) for raw in items) if p]
+    locs = (data.get("decode") or {}).get("locationDescriptions")
+    parsed = [p for p in (parse_item(raw, locs) for raw in items) if p]
     log.info(
         "crawl: %d free postings within %s km (%d of %d items had no coords)",
         len(parsed), params["search_distance"], len(items) - len(parsed), len(items),
     )
     return parsed
+
+
+_DATETIME_RE = re.compile(r'datetime="([^"]+)"')
+
+
+def fetch_posted(url):
+    """The true 'posted' timestamp (ISO string) for one posting, or None.
+
+    The search API carries no post time, so this fetches the detail page and reads
+    its first <time datetime=...> element (the "posted:" line). Called lazily, one
+    posting at a time, when a card is opened - never in bulk.
+
+    Only Craigslist URLs are fetched: this endpoint takes a URL from the client, so
+    the host check is what stops it being used as an open proxy (SSRF).
+    """
+    try:
+        host = urlparse(url).hostname or ""
+    except ValueError:
+        return None
+    if not (host == "craigslist.org" or host.endswith(".craigslist.org")):
+        return None
+    try:
+        r = requests.get(url, headers={"User-Agent": UA}, timeout=15, allow_redirects=True)
+        if r.status_code != 200:
+            return None
+        m = _DATETIME_RE.search(r.text)
+        return m.group(1) if m else None
+    except requests.RequestException:
+        return None
 
 
 if __name__ == "__main__":  # quick manual probe

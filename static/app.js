@@ -197,12 +197,40 @@ radiusInput.addEventListener('input', () => {
 /* ---- listing card ---- */
 const card = document.getElementById('card');
 let cardId = null;
+const postedCache = {};   // id -> ISO string (or null); posted time never changes
+function fmtPosted(iso) {
+  const t = Date.parse(iso); if (isNaN(t)) return null;
+  const mins = Math.round((Date.now() - t) / 60000);
+  if (mins < 1) return '🔥 posted just now';
+  if (mins < 60) return `🔥 posted ${mins} min ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs < 6 ? '🔥 ' : ''}posted ${hrs}h ago`;
+  const days = Math.round(hrs / 24);
+  return `posted ${days} day${days > 1 ? 's' : ''} ago`;
+}
+async function loadPosted(id, url) {
+  const el = document.getElementById('cardAge');
+  if (postedCache[id] !== undefined) {
+    const t = fmtPosted(postedCache[id]);
+    if (t && cardId === id) el.textContent = t;
+    return;
+  }
+  try {
+    const r = await fetch('/api/posted?u=' + encodeURIComponent(url));
+    const d = await r.json();
+    postedCache[id] = d.posted;
+    const t = fmtPosted(d.posted);
+    if (t && cardId === id) el.textContent = t;  // guard: user may have opened another card
+  } catch { /* keep the "spotted" fallback */ }
+}
 function openCard(id) {
   const f = state.finds.get(id); if (!f) return;
   cardId = id;
   document.getElementById('cardTitle').textContent = f.title;
-  document.getElementById('cardAge').textContent = ageText(f);
-  document.getElementById('cardLoc').innerHTML = `📍 <b>${distKm(f).toFixed(1)} km</b> from map centre`;
+  document.getElementById('cardAge').textContent = ageText(f);   // instant fallback
+  loadPosted(id, f.url);                                          // then the true posted time
+  const hood = f.neighborhood ? `<b>${f.neighborhood}</b> · ` : '';
+  document.getElementById('cardLoc').innerHTML = `📍 ${hood}${distKm(f).toFixed(1)} km away`;
   document.getElementById('cardCta').href = f.url;
   const photo = document.getElementById('cardPhoto');
   const glyph = document.getElementById('cardGlyph');

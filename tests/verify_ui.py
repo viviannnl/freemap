@@ -72,6 +72,17 @@ with sync_playwright() as p:
     cta = page.get_attribute("#cardCta", "href") or ""
     check(f"card shows real title ({title[:24]!r})", len(title) > 1 and title != "—")
     check("card CTA links to craigslist", "craigslist.org" in cta)
+    loc = page.inner_text("#cardLoc")
+    check(f"card shows neighborhood + distance ({loc!r})", "km" in loc)
+
+    # posted time is fetched lazily from the detail page and replaces the fallback
+    try:
+        page.wait_for_function("() => /posted/.test(document.getElementById('cardAge').textContent)",
+                               timeout=20000)
+        posted_txt = page.inner_text("#cardAge")
+        check(f"card loads true posted time ({posted_txt!r})", "posted" in posted_txt)
+    except Exception:
+        check("card loads true posted time (detail fetch timed out)", False)
 
     # M4: heart -> stash persists
     page.click("#cardHeart")

@@ -29,6 +29,7 @@ def crawl_payload():
         finds.append({
             "id": r["cl_id"], "title": r["title"], "url": r["url"],
             "thumb": r["thumb"], "lat": r["lat"], "lon": r["lon"],
+            "neighborhood": r.get("neighborhood"),
             "category": category, "glyph": glyph,
         })
     return {"center": {"lat": craigslist.CENTER_LAT, "lon": craigslist.CENTER_LON},
