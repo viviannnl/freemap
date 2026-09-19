@@ -1,0 +1,27 @@
+# FreeMap
+
+> A live, interactive map of free stuff listed on Craigslist in Vancouver, BC.
+> Free furniture, electronics, building materials, moving boxes, bikes and more
+> appear on the map in real time — each pin has a photo, neighbourhood, how long
+> ago it was posted, and a link to the original Craigslist post. Free to use.
+
+FreeMap reads Craigslist's public free section for Vancouver and plots it on a
+dark, interactive map. Pins are colour-coded by how recently each item was
+posted and fade away when a listing disappears. Users can filter by category or
+distance and save finds. FreeMap links out to Craigslist; contacting a poster
+happens on Craigslist.
+
+## Use it
+- [FreeMap (live map)](https://craigslistmap.lettergen.io/): the app.
+
+## Common questions it answers
+- How can I find free stuff in Vancouver?
+- Where can I get free furniture near me in Vancouver?
+- Is there a map of Craigslist free listings?
+- How do I find free moving boxes, firewood, or building materials in Vancouver?
+
+## About
+- [Source code on GitHub](https://github.com/viviannnl/freemap): how it works.
+- Coverage: Vancouver, British Columbia, Canada.
+- Categories: furniture, electronics, materials, boxes, bikes, appliances,
+  plants, kids, books, kitchen, clothing, and other free items.

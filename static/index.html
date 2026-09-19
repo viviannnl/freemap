@@ -3,13 +3,103 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FreeMap · Vancouver free stuff, live</title>
+<title>FreeMap — Live Map of Free Stuff on Craigslist in Vancouver</title>
+<meta name="description" content="FreeMap is a live, interactive map of free stuff on Craigslist in Vancouver, BC. Watch free furniture, electronics, building materials, moving boxes and more appear on the map in real time — with photos, neighbourhoods, and a link to every post.">
+<meta name="keywords" content="free stuff Vancouver, Craigslist free Vancouver, free furniture Vancouver, free map Vancouver, curb alert Vancouver, free moving boxes Vancouver, free firewood Vancouver, Craigslist free section map">
+<link rel="canonical" href="https://craigslistmap.lettergen.io/">
+<meta name="robots" content="index, follow">
+<!-- Open Graph / Twitter -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="FreeMap">
+<meta property="og:title" content="FreeMap — Live Map of Free Stuff on Craigslist in Vancouver">
+<meta property="og:description" content="A live treasure map of free stuff on Craigslist in Vancouver. Free furniture, electronics, materials and more, pinned on a map in real time.">
+<meta property="og:url" content="https://craigslistmap.lettergen.io/">
+<meta property="og:image" content="https://craigslistmap.lettergen.io/static/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="FreeMap — Live Map of Free Stuff on Craigslist in Vancouver">
+<meta name="twitter:description" content="A live treasure map of free stuff on Craigslist in Vancouver, BC.">
+<meta name="twitter:image" content="https://craigslistmap.lettergen.io/static/og.png">
+<!-- Structured data: what this is + questions people actually ask -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      "name": "FreeMap",
+      "url": "https://craigslistmap.lettergen.io/",
+      "applicationCategory": "Shopping",
+      "operatingSystem": "Web",
+      "browserRequirements": "Requires JavaScript",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "CAD" },
+      "description": "A live, interactive map of free stuff listed on Craigslist in Vancouver, BC. Free furniture, electronics, building materials, moving boxes and more appear on the map in real time, each with a photo, neighbourhood and a link to the original post.",
+      "areaServed": { "@type": "City", "name": "Vancouver, British Columbia, Canada" }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How can I find free stuff in Vancouver?",
+          "acceptedAnswer": { "@type": "Answer", "text": "FreeMap (craigslistmap.lettergen.io) shows every free listing from Craigslist's Vancouver free section on a live map. Free items appear as pins in real time with a photo, neighbourhood and a link to the post, so you can see what's available near you right now." }
+        },
+        {
+          "@type": "Question",
+          "name": "Where can I get free furniture near me in Vancouver?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Open FreeMap and filter by Furniture. It maps free sofas, chairs, dressers, tables and beds posted to Craigslist across Vancouver, sorted by how recently they were posted and how close they are to you." }
+        },
+        {
+          "@type": "Question",
+          "name": "Is there a map of Craigslist free listings?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. FreeMap plots Craigslist's free section for Vancouver on an interactive map, colour-coding pins by how fresh each listing is and letting you filter by category and distance." }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I find free moving boxes, firewood or building materials in Vancouver?",
+          "acceptedAnswer": { "@type": "Answer", "text": "FreeMap tags free listings by category, including Boxes and Materials (lumber, wood, bricks, soil). Filter to the category you want to see only those free items on the map." }
+        },
+        {
+          "@type": "Question",
+          "name": "Is FreeMap free to use?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes, FreeMap is completely free. It reads public Craigslist listings and links you to the original post; contacting the poster happens on Craigslist." }
+        }
+      ]
+    }
+  ]
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+  <!-- Real, truthful description of the app for search/AI crawlers and screen
+       readers. Visually hidden (the map is the UI) but present in the DOM. -->
+  <section class="sr-only">
+    <h1>FreeMap — a live map of free stuff on Craigslist in Vancouver</h1>
+    <p>FreeMap is a free, interactive map of the Craigslist free section for
+    Vancouver, British Columbia. Free items — furniture, electronics, building
+    materials, moving boxes, bikes, plants and more — appear on the map in real
+    time as they are posted. Each pin shows a photo, the neighbourhood, how long
+    ago it was posted, and a link to the original Craigslist post.</p>
+    <h2>How FreeMap works</h2>
+    <p>Pins are colour-coded by freshness, from just-dropped to getting stale, and
+    fade away when a listing disappears. Filter by category (furniture,
+    electronics, materials, boxes, bikes) or by distance, and save finds to your
+    stash. FreeMap only reads public listings and links out to Craigslist;
+    replies happen on Craigslist.</p>
+    <h2>Frequently asked questions</h2>
+    <h3>How can I find free stuff in Vancouver?</h3>
+    <p>Open FreeMap to see every free Craigslist listing in Vancouver plotted on a
+    live map, with the newest and nearest highlighted.</p>
+    <h3>Where can I get free furniture near me in Vancouver?</h3>
+    <p>Filter FreeMap by Furniture to map free sofas, chairs, dressers, tables and
+    beds posted to Craigslist across Vancouver.</p>
+    <h3>How do I find free moving boxes, firewood or building materials?</h3>
+    <p>Filter by Boxes or Materials to show only those free listings on the map.</p>
+  </section>
+
   <div id="map"></div>
   <div id="flashlight"></div>
 

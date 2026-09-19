@@ -9,6 +9,7 @@ serverless function (see api/finds.py) with no background thread or database.
 """
 
 import logging
+import os
 
 from flask import Flask, jsonify, request, send_from_directory
 
@@ -18,6 +19,7 @@ from classify import classify
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
+ROOT = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, static_folder="static")  # static served at /static/*
 
 
@@ -50,6 +52,23 @@ def posted():
 @app.route("/")
 def index():
     return send_from_directory(app.static_folder, "index.html")
+
+
+# GEO/SEO discovery files, served at the site root (Vercel serves these as static
+# files directly; locally Flask serves them here for parity).
+@app.route("/robots.txt")
+def robots():
+    return send_from_directory(ROOT, "robots.txt", mimetype="text/plain")
+
+
+@app.route("/llms.txt")
+def llms():
+    return send_from_directory(ROOT, "llms.txt", mimetype="text/plain")
+
+
+@app.route("/sitemap.xml")
+def sitemap():
+    return send_from_directory(ROOT, "sitemap.xml", mimetype="application/xml")
 
 
 if __name__ == "__main__":

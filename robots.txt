@@ -1,0 +1,23 @@
+# FreeMap — all crawlers welcome, including AI answer engines.
+User-agent: *
+Allow: /
+
+# Explicitly welcome major AI crawlers (they read this too).
+User-agent: GPTBot
+Allow: /
+User-agent: OAI-SearchBot
+Allow: /
+User-agent: ChatGPT-User
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: Claude-Web
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: Google-Extended
+Allow: /
+User-agent: Applebot-Extended
+Allow: /
+
+Sitemap: https://craigslistmap.lettergen.io/sitemap.xml
