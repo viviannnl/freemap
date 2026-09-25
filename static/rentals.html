@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RentMap — Craigslist Rentals in Vancouver on a Map, by Walking Distance</title>
+<meta name="description" content="RentMap plots Craigslist's Vancouver rental listings on a live map. Drop a pin anywhere — your office, campus, a SkyTrain station — and see which apartments are actually within a 10-minute walk, filtered by price and bedrooms, with photos and a link to every post.">
+<meta name="keywords" content="Vancouver rentals map, Craigslist rentals Vancouver, apartments near me Vancouver, rentals by walking distance, studio apartment Vancouver, 1 bedroom Vancouver, Craigslist apa map, downtown Vancouver apartments">
+<link rel="canonical" href="https://craigslistmap.lettergen.io/rentals">
+<meta name="robots" content="index, follow">
+<!-- Open Graph / Twitter -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Craigslist Map">
+<meta property="og:title" content="RentMap — Craigslist Rentals in Vancouver on a Map">
+<meta property="og:description" content="Drop a pin and see which Craigslist rentals are really within walking distance. Live map, price and bedroom filters, photos.">
+<meta property="og:url" content="https://craigslistmap.lettergen.io/rentals">
+<meta property="og:image" content="https://craigslistmap.lettergen.io/static/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="RentMap — Craigslist Rentals in Vancouver on a Map">
+<meta name="twitter:description" content="Craigslist Vancouver rentals, mapped and filtered by how far they are to walk.">
+<meta name="twitter:image" content="https://craigslistmap.lettergen.io/static/og.png">
+<!-- Structured data: what this is + questions people actually ask -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      "name": "RentMap",
+      "url": "https://craigslistmap.lettergen.io/rentals",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "browserRequirements": "Requires JavaScript",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "CAD" },
+      "description": "A live map of Craigslist rental listings in Vancouver, BC, filtered by walking distance from any point you choose, plus price and bedroom count. Each listing shows its rent, size, walking time, neighbourhood, a photo and a link to the original post.",
+      "areaServed": { "@type": "City", "name": "Vancouver, British Columbia, Canada" },
+      "isPartOf": { "@type": "WebSite", "name": "Craigslist Map", "url": "https://craigslistmap.lettergen.io/" }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How do I find apartments within walking distance of my work in Vancouver?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Open RentMap and drag the pin onto your workplace. Every Craigslist rental is then measured from that point, and the walk slider hides anything further than the walking time you choose. Walking times allow for street detours rather than assuming a straight line." }
+        },
+        {
+          "@type": "Question",
+          "name": "Is there a map of Craigslist rental listings for Vancouver?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. RentMap plots Craigslist's Vancouver housing section on an interactive map, with each pin labelled by rent and bedroom count, and filters for price, bedrooms and walking distance." }
+        },
+        {
+          "@type": "Question",
+          "name": "How can I find a studio or one-bedroom in downtown Vancouver?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Select the Studio and 1 bed chips on RentMap and set your price range. The list shows rent, size, walking time and how recently each place was spotted, and links to the original Craigslist post." }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I avoid room shares and sublets when searching Craigslist rentals?",
+          "acceptedAnswer": { "@type": "Answer", "text": "RentMap hides room shares, roommate posts and sublets by default, because they dominate the Craigslist housing feed. Turn the 'Whole units only' chip off if you do want to see them." }
+        },
+        {
+          "@type": "Question",
+          "name": "Does RentMap show every rental in Vancouver?",
+          "acceptedAnswer": { "@type": "Answer", "text": "No, and it says so. Craigslist's search endpoint returns at most 360 postings per request, while Vancouver usually has thousands listed at once, so RentMap shows the most recent 360 and displays both numbers. It is best used to catch new listings rather than to browse the entire market." }
+        },
+        {
+          "@type": "Question",
+          "name": "How old is the building? ",
+          "acceptedAnswer": { "@type": "Answer", "text": "Click 'look up age' on any listing. RentMap reads the posting for a stated year built, and otherwise looks the street address up in the City of Vancouver's property tax dataset. Roughly half of listings give an address precise enough to match." }
+        }
+      ]
+    }
+  ]
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="rentals">
+  <!-- Real, truthful description of the app for search/AI crawlers and screen
+       readers. Visually hidden (the map is the UI) but present in the DOM. -->
+  <section class="sr-only">
+    <h1>RentMap — Craigslist rentals in Vancouver, on a map, by walking distance</h1>
+    <p>RentMap is a free, interactive map of Craigslist's housing section for
+    Vancouver, British Columbia. Drop a pin anywhere — your office, your campus, a
+    SkyTrain station — and every rental is measured from that point, so you can see
+    which apartments are genuinely within a ten-minute walk rather than merely in
+    the same neighbourhood. Each pin is labelled with its rent, and each listing
+    shows bedrooms, floor area where given, walking time, distance in metres, the
+    neighbourhood, a photo and a link to the original Craigslist post.</p>
+    <h2>How RentMap works</h2>
+    <p>Filter by walking time, price range and bedroom count, including studios.
+    Room shares, roommate posts and sublets are hidden by default. Listings spotted
+    in the last half hour are marked NEW, pins are colour-coded by how recently they
+    appeared, and a place that is reposted repeatedly is flagged as relisted, which
+    often means it has not rented. You can also look up how old a building is, from
+    the posting itself or from City of Vancouver property records.</p>
+    <p>RentMap only reads public listings and links out to Craigslist. Replying
+    happens on Craigslist, which guards reply addresses behind a captcha.</p>
+    <h2>What RentMap does not show</h2>
+    <p>Craigslist's search endpoint returns at most 360 postings per request, and
+    Vancouver usually has several thousand rentals listed at once. RentMap shows the
+    most recent 360 and displays both numbers, so it is best for catching what has
+    just been posted rather than for browsing the whole market.</p>
+    <h2>Frequently asked questions</h2>
+    <h3>How do I find apartments within walking distance of my work?</h3>
+    <p>Drag the pin onto your workplace; the walk slider then hides anything further
+    away than the walking time you choose, allowing for street detours.</p>
+    <h3>How can I find a studio or one-bedroom in downtown Vancouver?</h3>
+    <p>Select the Studio and 1 bed chips and set your price range.</p>
+    <h2>Looking for free stuff instead?</h2>
+    <p>The same map covers Craigslist's free section:
+      <a href="/">free stuff in Vancouver on a map</a> — free furniture,
+      electronics, building materials and moving boxes, live.</p>
+  </section>
+
+  <div id="map"></div>
+  <div id="flashlight"></div>
+
+  <div class="topbar">
+    <div><span class="logo">Rent<span class="m">Map</span></span><span class="sub">Vancouver · rentals, live</span></div>
+    <nav class="modes">
+      <a href="/">🎁 Free stuff</a>
+      <a class="on" href="/rentals">🏠 Rentals</a>
+    </nav>
+    <div class="filters">
+      <div class="f range">
+        <div class="lbl"><span>Max walk</span><b id="walkLabel">15 min</b></div>
+        <input type="range" id="walk" min="2" max="45" value="15">
+        <div class="lbl"><span id="walkMetres">1000 m</span></div>
+      </div>
+      <div class="f">
+        <div class="lbl"><span>Rent per month</span></div>
+        <div class="pair">
+          <input type="number" id="minPrice" placeholder="min" min="0" step="100" inputmode="numeric">
+          <input type="number" id="maxPrice" placeholder="max" min="0" step="100" inputmode="numeric">
+        </div>
+      </div>
+      <div class="f">
+        <div class="lbl"><span>Bedrooms</span></div>
+        <div class="chips" id="bedChips" style="margin-left:0">
+          <div class="chip on" data-beds="0">Studio</div>
+          <div class="chip on" data-beds="1">1</div>
+          <div class="chip on" data-beds="2">2</div>
+          <div class="chip on" data-beds="3">3+</div>
+        </div>
+      </div>
+      <div class="f">
+        <div class="lbl"><span>&nbsp;</span></div>
+        <div class="chip on" id="wholeChip" title="Hide room shares, roommate posts and sublets">Whole units only</div>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div class="live"><span class="blip"></span>Live</div>
+  </div>
+
+  <button class="stashbtn" id="dockToggle">🏠 Listings <span class="n" id="rentCount">0</span></button>
+
+  <aside class="dock" id="dock">
+    <div class="dh">
+      <div>
+        <h3 id="dockTitle">Within reach</h3>
+        <div class="sub" id="rentListed">—</div>
+      </div>
+      <div class="dtools">
+        <button class="dbtn" id="shortlistBtn" title="Show only what you've saved">★ <span id="savedN">0</span></button>
+        <button class="dbtn" id="dockWide" title="Show two columns">⤢</button>
+        <button class="dbtn" id="dockClose" title="Hide the list">✕</button>
+      </div>
+    </div>
+    <div class="sorts" id="sorts">
+      <b>Sort</b>
+      <button class="dbtn on" data-sort="new">Newest</button>
+      <button class="dbtn" data-sort="price">Price</button>
+      <button class="dbtn" data-sort="walk">Walk</button>
+    </div>
+    <div class="dlist" id="rentList"></div>
+  </aside>
+
+  <div class="card" id="card">
+    <div class="photo" id="cardPhoto">
+      <span id="cardGlyph">🏠</span>
+      <div class="free" id="cardBadge">FOR RENT</div>
+      <div class="heart" id="cardHeart" title="Save to shortlist">🤍</div>
+      <div class="close" id="cardClose" title="Close">×</div>
+    </div>
+    <div class="cbody">
+      <div class="ctitle" id="cardTitle">—</div>
+      <div class="meta"><span class="hot" id="cardAge">🔥 just now</span></div>
+      <div class="facts" id="cardFacts"></div>
+      <div class="loc" id="cardLoc">—</div>
+      <a class="cta" id="cardCta" href="#" target="_blank" rel="noopener">See it on Craigslist →</a>
+      <div class="note">Opens the original post · replies aren't automated</div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <h4>Spotted</h4>
+    <div class="lrow"><span class="sw" style="background:#5FD3C4;box-shadow:0 0 8px #5FD3C4"></span>In the last 30 min</div>
+    <div class="lrow"><span class="sw" style="background:#3FB8B0"></span>A few hours ago</div>
+    <div class="lrow"><span class="sw" style="background:#5A6884"></span>Earlier</div>
+    <div class="lrow"><span class="sw" style="border:1px dashed #4a5468"></span>Taken down</div>
+  </div>
+  <div class="count"><b id="countN">0</b> rentals within your walk</div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/static/app.js"></script>
+  <script src="/static/mode-rentals.js"></script>
+</body>
+</html>

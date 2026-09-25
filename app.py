@@ -1,11 +1,10 @@
-"""FreeMap - local dev server.
+"""Local dev server - the same endpoints Vercel serves, in one process.
 
-A thin, stateless proxy: it crawls Craigslist's free category on demand and
-returns the current set of finds. Freshness (fresh/warm/cool), loot-drops and
-the "gone" shatter are all derived in the browser by diffing successive polls
-and remembering when each posting was first seen (localStorage). That keeps the
-server stateless, which is what lets the exact same code run as a Vercel
-serverless function (see api/finds.py) with no background thread or database.
+A thin, stateless proxy: it crawls Craigslist on demand and returns what's current.
+Freshness, filtering, loot-drops and the "gone" shatter are all derived in the
+browser by diffing successive polls and remembering when each posting was first
+seen (localStorage). That is what lets the exact same code run as serverless
+functions (see api/) with no background thread and no database.
 """
 
 import logging
@@ -13,8 +12,9 @@ import os
 
 from flask import Flask, jsonify, request, send_from_directory
 
-import craigslist
-from classify import classify
+from craigslist.building import year_built
+from craigslist.posted import fetch_posted, is_craigslist
+from payloads import free_payload, rentals_payload
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -23,35 +23,40 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, static_folder="static")  # static served at /static/*
 
 
-def crawl_payload():
-    rows = craigslist.crawl()
-    finds = []
-    for r in rows:
-        category, glyph = classify(r["title"])
-        finds.append({
-            "id": r["cl_id"], "title": r["title"], "url": r["url"],
-            "thumb": r["thumb"], "lat": r["lat"], "lon": r["lon"],
-            "neighborhood": r.get("neighborhood"),
-            "category": category, "glyph": glyph,
-        })
-    return {"center": {"lat": craigslist.CENTER_LAT, "lon": craigslist.CENTER_LON},
-            "finds": finds}
-
-
 @app.route("/api/finds")
 def finds():
-    return jsonify(crawl_payload())
+    return jsonify(free_payload())
+
+
+@app.route("/api/rentals")
+def rentals():
+    return jsonify(rentals_payload())
 
 
 @app.route("/api/posted")
 def posted():
-    """Lazy: the true posted time for one posting (see craigslist.fetch_posted)."""
-    return jsonify({"posted": craigslist.fetch_posted(request.args.get("u", ""))})
+    return jsonify({"posted": fetch_posted(request.args.get("u", ""))})
 
 
+@app.route("/api/building")
+def building():
+    url = request.args.get("u", "")
+    if not is_craigslist(url):
+        return jsonify({"year_built": None, "year_source": None, "address": None})
+    year, source, address = year_built(url)
+    return jsonify({"year_built": year, "year_source": source, "address": address})
+
+
+# Two real pages, not one page with a hash. Each has its own title, description and
+# structured data, so the rentals half is findable rather than hidden behind JS.
 @app.route("/")
 def index():
     return send_from_directory(app.static_folder, "index.html")
+
+
+@app.route("/rentals")
+def rentals_page():
+    return send_from_directory(app.static_folder, "rentals.html")
 
 
 # GEO/SEO discovery files, served at the site root (Vercel serves these as static

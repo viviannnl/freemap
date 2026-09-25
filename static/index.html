@@ -98,6 +98,10 @@
     beds posted to Craigslist across Vancouver.</p>
     <h3>How do I find free moving boxes, firewood or building materials?</h3>
     <p>Filter by Boxes or Materials to show only those free listings on the map.</p>
+    <h2>Looking for a place to live?</h2>
+    <p>The same map covers Craigslist rentals:
+      <a href="/rentals">Vancouver rentals on a map</a>, filtered by walking distance
+      from any point you drop, plus price and bedrooms.</p>
   </section>
 
   <div id="map"></div>
@@ -105,6 +109,10 @@
 
   <div class="topbar">
     <div><span class="logo">Free<span class="m">Map</span></span><span class="sub">Vancouver · free stuff, live</span></div>
+    <nav class="modes">
+      <a class="on" href="/">🎁 Free stuff</a>
+      <a href="/rentals">🏠 Rentals</a>
+    </nav>
     <div class="chips" id="chips">
       <div class="chip on" data-cat="all">All finds</div>
       <div class="chip" data-cat="furniture">🪑 Furniture</div>
@@ -123,9 +131,9 @@
 
   <button class="stashbtn" id="stashBtn">🎒 Stash <span class="n" id="stashN">0</span></button>
 
-  <aside class="stash" id="stash">
-    <div class="sh"><h3>🎒 Your Stash</h3><span class="scount" id="stashCount">0 saved</span></div>
-    <div id="stashList"></div>
+  <aside class="dock" id="stash">
+    <div class="dh"><h3>🎒 Your Stash</h3><span class="scount" id="stashCount">0 saved</span></div>
+    <div class="dlist" id="stashList"></div>
   </aside>
 
   <div class="card" id="card">
@@ -138,6 +146,7 @@
     <div class="cbody">
       <div class="ctitle" id="cardTitle">—</div>
       <div class="meta"><span class="hot" id="cardAge">🔥 just now</span><span>·</span><span>first come, first served</span></div>
+      <div class="facts" id="cardFacts"></div>
       <div class="loc" id="cardLoc">—</div>
       <a class="cta" id="cardCta" href="#" target="_blank" rel="noopener">Grab it on Craigslist →</a>
       <div class="note">Opens the original post · reply isn't automated</div>
@@ -157,5 +166,6 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="/static/app.js"></script>
+  <script src="/static/mode-free.js"></script>
 </body>
 </html>

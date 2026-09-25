@@ -1,10 +1,17 @@
-/* FreeMap - dark "treasure map" theme. Palette mirrors the approved Pixso design. */
+/* Dark "treasure map" theme, shared by both maps. Palette mirrors the approved
+   Pixso design; --mint is the rentals counterpart to --gold, chosen so the two
+   kinds of pin differ in hue and not merely in lightness. */
 :root{
   --bg:#0a0f1c; --panel:#111a2c; --panel2:#0c1220;
   --text:#E8EDF5; --muted:#8A94A8; --line:rgba(255,255,255,.08);
   --gold:#FFD166; --gold2:#F4A259; --amber:#EE8F45; --cool:#5A6884;
   --green:#37e08a;
+  --mint:#5FD3C4; --mint2:#3FB8B0; --mint-soft:rgba(95,211,196,.12);
+  --accent:var(--gold); --accent2:var(--gold2); /* overridden on the rentals page */
+  /* the accent again as bare channels, because rgba() can't take a hex var */
+  --accent-rgb:255,209,102;
 }
+body.rentals{--accent:var(--mint);--accent2:var(--mint2);--accent-rgb:95,211,196}
 *{margin:0;padding:0;box-sizing:border-box}
 /* Real content for crawlers + screen readers; off-screen, not display:none. */
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
@@ -28,7 +35,7 @@ body{
 #flashlight{
   position:fixed;width:560px;height:560px;left:0;top:0;margin:-280px 0 0 -280px;
   border-radius:50%;pointer-events:none;z-index:400;opacity:0;transition:opacity .3s;
-  background:radial-gradient(circle,rgba(255,209,102,.18) 0%,rgba(255,209,102,.06) 38%,transparent 68%);
+  background:radial-gradient(circle,rgba(var(--accent-rgb),.18) 0%,rgba(var(--accent-rgb),.06) 38%,transparent 68%);
   mix-blend-mode:screen;will-change:transform;
 }
 body.torch #flashlight{opacity:1}
@@ -40,13 +47,13 @@ body.torch #flashlight{opacity:1}
   display:flex;align-items:center;justify-content:center;transition:box-shadow .2s}
 .pin .glyph{transform:rotate(-45deg);font-size:19px;line-height:1}
 .pin .ring{position:absolute;top:-11px;left:50%;margin-left:-33px;width:66px;height:66px;
-  border-radius:50%;border:2px solid rgba(255,209,102,.55);opacity:0;pointer-events:none}
+  border-radius:50%;border:2px solid rgba(var(--accent-rgb),.55);opacity:0;pointer-events:none}
 .pin .tag{margin-top:7px;font-size:11px;font-weight:600;background:rgba(10,16,28,.85);
   padding:3px 8px;border-radius:8px;border:1px solid var(--line);white-space:nowrap;
   color:#dbe3f0;pointer-events:none;opacity:0;transform:translateY(-4px);transition:.15s}
 .pin.awake{transform:scale(1.18) translateY(-4px);z-index:600}
 .pin.awake .tag{opacity:1;transform:none}
-.pin.awake .dot{box-shadow:0 0 30px 10px rgba(255,209,102,.5)}
+.pin.awake .dot{box-shadow:0 0 30px 10px rgba(var(--accent-rgb),.5)}
 
 /* freshness colours */
 .pin.fresh .dot{background:linear-gradient(135deg,#FFE08A,#FFC24D);
@@ -74,23 +81,41 @@ body.torch #flashlight{opacity:1}
   gap:16px;padding:0 22px;z-index:500;
   background:linear-gradient(180deg,rgba(8,13,24,.96),rgba(8,13,24,.55));
   border-bottom:1px solid var(--line);backdrop-filter:blur(8px)}
+/* The wordmark must not be squeezed into wrapping by the controls beside it - the
+   mode switch and the filters made the bar tight enough for that to happen. */
+.topbar > div:first-child{flex:none;white-space:nowrap}
 .logo{font-size:22px;font-weight:800;letter-spacing:-.5px}
-.logo .m{color:var(--gold)}
+.logo .m{color:var(--accent)}
 .sub{font-size:12px;color:var(--muted);margin-left:6px}
-.chips{display:flex;gap:8px;margin-left:14px}
+@media (max-width:1400px){.sub{display:none}}
+
+/* MODE SWITCH - two real pages, so two real links. The map is the constant; what
+   changes is which half of Craigslist you're looking at. */
+.modes{display:flex;gap:4px;margin-left:16px;padding:4px;border-radius:999px;
+  background:rgba(255,255,255,.05);border:1px solid var(--line);flex:none}
+.modes a{font-size:13px;font-weight:600;padding:6px 13px;border-radius:999px;
+  color:#C7D0E0;text-decoration:none;white-space:nowrap;transition:.15s}
+.modes a:hover{background:rgba(255,255,255,.07);color:var(--text)}
+.modes a.on{background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#0d1220;font-weight:700}
+/* Scroll rather than wrap when the bar runs out of room; a wrapping chip row shoves
+   the whole topbar taller and pushes the map down. */
+.chips{display:flex;gap:8px;margin-left:14px;overflow-x:auto;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none}
 .chip{font-size:13px;padding:7px 13px;border-radius:999px;cursor:pointer;user-select:none;
   background:rgba(255,255,255,.05);border:1px solid var(--line);color:#C7D0E0;transition:.15s}
 .chip:hover{background:rgba(255,255,255,.1)}
-.chip.on{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1a1205;
+.chip.on{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#0d1220;
   font-weight:700;border-color:transparent}
 .spacer{flex:1}
 .radius{display:flex;flex-direction:column;gap:5px;width:190px}
 .radius .lbl{font-size:11px;color:var(--muted);display:flex;justify-content:space-between}
-.radius .lbl b{color:var(--gold)}
+.radius .lbl b{color:var(--accent)}
 .radius input[type=range]{-webkit-appearance:none;height:6px;border-radius:3px;
   background:rgba(255,255,255,.1);outline:none}
 .radius input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;
-  border-radius:50%;background:#fff;box-shadow:0 0 8px rgba(255,209,102,.8);cursor:pointer}
+  border-radius:50%;background:#fff;box-shadow:0 0 8px rgba(var(--accent-rgb),.8);cursor:pointer}
 .live{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;padding:8px 14px;
   border-radius:999px;background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.3);color:#5fe39a}
 .blip{width:8px;height:8px;border-radius:50%;background:var(--green);
@@ -99,14 +124,14 @@ body.torch #flashlight{opacity:1}
 
 /* LISTING CARD */
 .card{position:fixed;top:96px;left:50%;transform:translateX(-50%) translateY(12px);
-  width:340px;background:var(--panel);border:1px solid rgba(255,209,102,.2);border-radius:20px;
+  width:340px;background:var(--panel);border:1px solid rgba(var(--accent-rgb),.2);border-radius:20px;
   overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.6);z-index:550;opacity:0;
   pointer-events:none;transition:.22s}
 .card.open{opacity:1;pointer-events:auto;transform:translateX(-50%)}
 .card .photo{height:190px;background:linear-gradient(135deg,#2a3550,#1a2338) center/cover no-repeat;
   position:relative;display:flex;align-items:center;justify-content:center;font-size:56px}
-.card .free{position:absolute;top:12px;left:12px;background:linear-gradient(135deg,var(--gold),var(--gold2));
-  color:#1a1205;font-weight:800;font-size:12px;padding:5px 12px;border-radius:999px;letter-spacing:.5px}
+.card .free{position:absolute;top:12px;left:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#0d1220;font-weight:800;font-size:12px;padding:5px 12px;border-radius:999px;letter-spacing:.5px}
 .card .close{position:absolute;top:12px;right:52px;width:36px;height:36px;border-radius:50%;
   background:rgba(10,16,28,.7);border:1px solid var(--line);color:#c7d0e0;font-size:18px;
   display:flex;align-items:center;justify-content:center;cursor:pointer}
@@ -119,22 +144,16 @@ body.torch #flashlight{opacity:1}
 .card .hot{color:#FFB870;font-weight:700}
 .card .loc{font-size:13px;color:#C7D0E0;margin-bottom:14px}
 .card .cta{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;
-  border-radius:12px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1a1205;
+  border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#0d1220;
   font-weight:800;font-size:15px;text-decoration:none}
 .card .note{text-align:center;font-size:11px;color:#7A8398;margin-top:10px}
 
-/* STASH */
-.stash{position:fixed;top:72px;right:0;bottom:0;width:296px;padding:20px;z-index:520;
-  background:linear-gradient(180deg,rgba(12,18,32,.96),rgba(10,15,26,.98));
-  border-left:1px solid var(--line);transform:translateX(100%);transition:transform .25s}
-.stash.open{transform:none}
-.stash .sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.stash .sh h3{font-size:16px;font-weight:800}
-.scount{font-size:12px;color:var(--gold);background:rgba(255,209,102,.12);padding:3px 10px;border-radius:999px}
-.stash .empty{color:var(--muted);font-size:13px;line-height:1.5;margin-top:30px;text-align:center}
+/* STASH - the panel itself is the shared .dock (see RENTALS below); these are the
+   saved-item rows that go inside it. */
+.scount{font-size:12px;color:var(--accent);background:rgba(var(--accent-rgb),.12);padding:3px 10px;border-radius:999px}
 .sitem{display:flex;gap:12px;padding:12px;border-radius:14px;background:rgba(255,255,255,.03);
-  border:1px solid var(--line);margin-bottom:12px;cursor:pointer;position:relative}
-.sitem:hover{border-color:rgba(255,209,102,.3)}
+  border:1px solid var(--line);cursor:pointer;position:relative}
+.sitem:hover{border-color:rgba(var(--accent-rgb),.3)}
 .sthumb{width:52px;height:52px;border-radius:10px;background:linear-gradient(135deg,#2a3550,#1a2338) center/cover;
   display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
 .si-t{font-size:13px;font-weight:700;line-height:1.3;padding-right:16px}
@@ -143,9 +162,9 @@ body.torch #flashlight{opacity:1}
 .si-x:hover{color:#e06a6a}
 /* stash toggle button (floating) */
 .stashbtn{position:fixed;top:84px;right:20px;z-index:530;padding:9px 15px;border-radius:999px;
-  background:var(--panel);border:1px solid rgba(255,209,102,.25);color:var(--text);font-weight:700;
+  background:var(--panel);border:1px solid rgba(var(--accent-rgb),.25);color:var(--text);font-weight:700;
   font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px}
-.stashbtn .n{background:var(--gold);color:#1a1205;border-radius:999px;padding:1px 8px;font-size:12px}
+.stashbtn .n{background:var(--accent);color:#0d1220;border-radius:999px;padding:1px 8px;font-size:12px}
 
 /* LEGEND + COUNT */
 .legend{position:fixed;bottom:22px;left:22px;background:rgba(10,16,28,.85);border:1px solid var(--line);
@@ -155,10 +174,145 @@ body.torch #flashlight{opacity:1}
 .lrow:last-child{margin-bottom:0}
 .sw{width:12px;height:12px;border-radius:50%}
 .count{position:fixed;bottom:30px;left:210px;font-size:13px;color:var(--muted);z-index:500}
-.count b{color:var(--gold);font-size:15px}
+.count b{color:var(--accent);font-size:15px}
 
 /* toast for live drops */
 .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);z-index:560;
-  background:var(--panel);border:1px solid rgba(255,209,102,.3);border-radius:999px;padding:10px 18px;
+  background:var(--panel);border:1px solid rgba(var(--accent-rgb),.3);border-radius:999px;padding:10px 18px;
   font-size:13px;font-weight:600;opacity:0;transition:.3s;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 .toast.show{opacity:1;transform:translateX(-50%)}
+
+/* ======================================================================
+   RENTALS
+   The map, torch, card, ring and toast above are shared. What follows is only
+   what rentals add: a price-tag pin instead of a glyph pin, a draggable anchor
+   to measure walking distance from, and a docked list for the detail that
+   doesn't fit on a pin.
+   ====================================================================== */
+
+/* Freshness in mint, so a rental never reads as a free find. Same three tiers. */
+body.rentals .pin.fresh .dot{background:linear-gradient(135deg,#A8EFE5,#5FD3C4);
+  box-shadow:0 0 24px 7px rgba(95,211,196,.5)}
+body.rentals .pin.warm .dot{background:linear-gradient(135deg,#6FC9C2,#3FB8B0);
+  box-shadow:0 0 16px 4px rgba(63,184,176,.34)}
+
+/* PRICE-TAG PIN - a pill that says the rent, because the rent is the thing you
+   scan a rental map for. Square-ish with one clipped corner, echoing the
+   teardrop's shape language without being the same object. */
+.pin.rent .dot{width:auto;height:26px;min-width:56px;padding:0 9px;transform:none;
+  border-radius:7px 7px 7px 2px;font-size:12.5px;font-weight:800;color:#0d1220;
+  font-variant-numeric:tabular-nums}
+.pin.rent .glyph{transform:none;font-size:12.5px;font-weight:800}
+.pin.rent .ring{top:-14px;width:54px;height:54px;margin-left:-27px}
+.pin.rent.cool .dot{color:#E8EDF5}
+.pin.rent .beds{opacity:.72;font-weight:700;margin-left:4px;font-size:11px}
+
+/* ANCHOR - the point walking distance is measured from. Drag it anywhere. */
+.pin.anchor{cursor:grab}
+.pin.anchor .dot{width:30px;height:30px;border-radius:50%;transform:none;
+  background:radial-gradient(circle at 35% 35%,#fff,var(--mint));
+  box-shadow:0 0 0 4px rgba(95,211,196,.22),0 0 22px 6px rgba(95,211,196,.55)}
+.pin.anchor .glyph{transform:none;font-size:15px}
+.leaflet-dragging .pin.anchor{cursor:grabbing}
+
+/* FILTER BAR - the rentals equivalent of the category chips. */
+.filters{display:flex;align-items:center;gap:14px;margin-left:14px;flex-wrap:wrap}
+.f{display:flex;flex-direction:column;gap:4px}
+.f .lbl{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.f .lbl b{color:var(--accent);font-variant-numeric:tabular-nums}
+.f.range{width:150px}
+.f input[type=range]{-webkit-appearance:none;height:6px;border-radius:3px;
+  background:rgba(255,255,255,.1);outline:none}
+.f input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;
+  border-radius:50%;background:#fff;box-shadow:0 0 8px rgba(var(--accent-rgb),.8);cursor:pointer}
+.f .pair{display:flex;gap:6px}
+.f input[type=number]{width:74px;font:inherit;font-size:13px;padding:6px 8px;color:var(--text);
+  background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:9px}
+.f input[type=number]:focus{outline:none;border-color:var(--accent)}
+.f input[type=number]::-webkit-outer-spin-button,
+.f input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+
+/* DOCK - the Stash panel's geometry, reused for the listings list. Wider, because
+   a rental carries price, size, walk time, age and a link; and widenable to two
+   columns when you want to browse rather than glance. */
+.dock{position:fixed;top:72px;right:0;bottom:0;width:380px;padding:18px;z-index:520;
+  background:linear-gradient(180deg,rgba(12,18,32,.97),rgba(10,15,26,.99));
+  border-left:1px solid var(--line);transform:translateX(100%);transition:transform .25s,width .25s;
+  display:flex;flex-direction:column;gap:14px}
+.dock.open{transform:none}
+.dock.wide{width:min(760px,86vw)}
+/* The floating opener sits where the dock's own buttons are, so it stands down
+   while the dock is open - the ✕ in the header closes it instead. */
+body.dock-open .stashbtn{display:none}
+.dock .dh{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex:none}
+.dock .dh h3{font-size:16px;font-weight:800}
+.dock .dh .sub{font-size:11px;color:var(--muted);margin-top:3px}
+.dock .dtools{display:flex;align-items:center;gap:6px;flex:none}
+.dock .dbtn{font:inherit;font-size:12px;font-weight:700;padding:5px 10px;border-radius:8px;cursor:pointer;
+  background:rgba(255,255,255,.05);border:1px solid var(--line);color:#C7D0E0}
+.dock .dbtn:hover{border-color:var(--accent);color:var(--text)}
+.dock .dbtn.on{background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#0d1220;border-color:transparent}
+.dock .sorts{display:flex;gap:4px;font-size:12px;color:var(--muted);align-items:center;flex:none}
+.dock .sorts b{font-weight:600;color:var(--muted);margin-right:2px}
+/* grid-auto-rows:max-content is load-bearing. Left as `auto`, every track collapsed
+   to an equal share of the dock's height, which first clipped each card's contents
+   and then - once the cards were their natural height - let them overlap the card
+   below. max-content sizes the track to the card; align-items:start stops the card
+   being stretched to the track. */
+.dlist{overflow-y:auto;flex:1;display:grid;gap:11px;grid-auto-rows:max-content;
+  align-content:start;align-items:start;grid-template-columns:1fr;padding-right:2px}
+.dock.wide .dlist{grid-template-columns:1fr 1fr}
+.dlist::-webkit-scrollbar{width:8px}
+.dlist::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px}
+.dock .empty{color:var(--muted);font-size:13px;line-height:1.5;margin-top:30px;text-align:center}
+
+/* RENTAL ROW */
+.rl{position:relative;background:rgba(255,255,255,.03);border:1px solid var(--line);
+  border-radius:14px;padding:13px 14px;cursor:pointer;overflow:hidden;
+  transition:border-color .15s,box-shadow .15s;scroll-margin-top:8px}
+.rl:hover{border-color:rgba(var(--accent-rgb),.35)}
+.rl.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.rl.gone{opacity:.55}
+@keyframes flashrow{0%{box-shadow:0 0 0 3px var(--accent)}100%{box-shadow:none}}
+.rl.flash{animation:flashrow 1.2s ease-out}
+.rl .top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.rl .price{font-size:21px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
+.rl .newtag{font-size:10px;font-weight:800;letter-spacing:.06em;color:#0d1220;
+  background:var(--accent);border-radius:999px;padding:2px 7px;flex:none}
+.rl .facts{font-size:12px;color:var(--muted);margin-top:5px;display:flex;flex-wrap:wrap;gap:5px}
+.rl .facts b{color:var(--accent);font-weight:700}
+.rl .meter{height:3px;border-radius:2px;background:rgba(255,255,255,.08);margin:9px 0 10px;overflow:hidden}
+.rl .meter span{display:block;height:100%;border-radius:2px;
+  background:linear-gradient(90deg,var(--accent2),var(--accent))}
+.rl .rtitle{font-size:13px;font-weight:600;line-height:1.35;color:var(--text);
+  display:block;margin-bottom:3px}
+.rl .hood{font-size:11px;color:var(--muted)}
+.rl .rthumb{float:right;width:54px;height:54px;border-radius:9px;margin:0 0 8px 10px;
+  background:linear-gradient(135deg,#2a3550,#1a2338) center/cover;flex:none}
+.rl .foot{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin-top:10px;padding-top:9px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+.rl .go{color:var(--accent);font-weight:700;text-decoration:none;font-size:11.5px}
+.rl .tagline{display:inline-block;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;
+  background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--muted)}
+.rl .tagline.relist{color:var(--accent);border-color:rgba(var(--accent-rgb),.3);
+  background:var(--mint-soft)}
+.rl .agebtn{background:none;border:0;padding:0;font:inherit;font-size:11px;color:var(--accent);
+  cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px}
+
+/* card facts row, used by rentals (free stuff leaves it empty) */
+.card .facts{font-size:13px;color:#C7D0E0;margin:2px 0 8px;display:flex;gap:7px;flex-wrap:wrap}
+.card .facts b{color:var(--accent);font-weight:700}
+
+/* MOBILE - the dock becomes a bottom sheet; the map keeps the top half. */
+@media (max-width:820px){
+  .topbar{height:auto;padding:10px 14px;flex-wrap:wrap;gap:10px}
+  .modes{margin-left:0}
+  .filters{margin-left:0;width:100%}
+  .dock{top:auto;left:0;width:100%;height:62vh;border-left:0;
+    border-top:1px solid var(--line);border-radius:18px 18px 0 0;transform:translateY(100%)}
+  .dock.open{transform:none}
+  .dock.wide{width:100%}
+  .dock.wide .dlist{grid-template-columns:1fr}
+  .legend,.count{display:none}
+}

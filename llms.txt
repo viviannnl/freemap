@@ -1,27 +1,49 @@
-# FreeMap
+# Craigslist Map — Vancouver
 
-> A live, interactive map of free stuff listed on Craigslist in Vancouver, BC.
-> Free furniture, electronics, building materials, moving boxes, bikes and more
-> appear on the map in real time — each pin has a photo, neighbourhood, how long
-> ago it was posted, and a link to the original Craigslist post. Free to use.
+> Two live, interactive maps of Craigslist Vancouver: **FreeMap** for the free
+> section (free furniture, electronics, building materials, moving boxes, bikes)
+> and **RentMap** for rentals, filtered by how far each place is to walk from any
+> point you drop a pin on. Every listing shows a photo, the neighbourhood, how
+> recently it appeared, and a link to the original post. Free to use.
 
-FreeMap reads Craigslist's public free section for Vancouver and plots it on a
-dark, interactive map. Pins are colour-coded by how recently each item was
-posted and fade away when a listing disappears. Users can filter by category or
-distance and save finds. FreeMap links out to Craigslist; contacting a poster
-happens on Craigslist.
+Both maps read Craigslist's public listings and plot them on a dark, interactive
+map. Pins are colour-coded by how recently each posting appeared and fade away
+when a listing disappears. Neither map automates contacting a poster: they link
+out to Craigslist, where replies are guarded by a captcha.
 
 ## Use it
-- [FreeMap (live map)](https://craigslistmap.lettergen.io/): the app.
+- [FreeMap — free stuff](https://craigslistmap.lettergen.io/): Craigslist's free
+  section for Vancouver, on a map, filterable by category and distance.
+- [RentMap — rentals](https://craigslistmap.lettergen.io/rentals): Craigslist
+  rentals for Vancouver, on a map, filterable by walking time from a pin you
+  place, plus price and bedroom count.
 
 ## Common questions it answers
 - How can I find free stuff in Vancouver?
 - Where can I get free furniture near me in Vancouver?
 - Is there a map of Craigslist free listings?
 - How do I find free moving boxes, firewood, or building materials in Vancouver?
+- How do I find apartments within walking distance of my work in Vancouver?
+- Is there a map of Craigslist rental listings for Vancouver?
+- How can I find a studio or one-bedroom in downtown Vancouver?
+- How do I avoid room shares and sublets when searching Craigslist rentals?
+- How old is the building a rental is in?
+
+## Honest limits
+- Craigslist's search endpoint returns at most 360 postings per request. Vancouver
+  usually has ~1,000 free postings and several thousand rentals listed at once, so
+  each map shows the most recent 360 and displays both numbers. Best for catching
+  what has just been posted, not for browsing an entire market.
+- The search endpoint carries no post time, so freshness is "spotted" — when the
+  browser first saw a posting — not "posted". A card fetches the true posted time
+  from the listing page when you open it.
+- Walking times are straight-line distance scaled by 1.25 to allow for street
+  detours at 5 km/h. They are estimates, not routed directions.
 
 ## About
 - [Source code on GitHub](https://github.com/viviannnl/freemap): how it works.
 - Coverage: Vancouver, British Columbia, Canada.
-- Categories: furniture, electronics, materials, boxes, bikes, appliances,
+- Free categories: furniture, electronics, materials, boxes, bikes, appliances,
   plants, kids, books, kitchen, clothing, and other free items.
+- Rental data: rent, bedrooms, floor area where given, neighbourhood, photo, and
+  year built (from the posting, or City of Vancouver property records).

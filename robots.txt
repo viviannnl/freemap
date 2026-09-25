@@ -1,4 +1,5 @@
-# FreeMap — all crawlers welcome, including AI answer engines.
+# Craigslist Map (FreeMap + RentMap) — all crawlers welcome, including AI answer
+# engines.
 User-agent: *
 Allow: /
 
