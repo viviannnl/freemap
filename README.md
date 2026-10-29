@@ -28,20 +28,42 @@ python3 -m venv .venv && ./.venv/bin/pip install -r requirements.txt
 ./.venv/bin/python app.py          # serves http://127.0.0.1:5001
 ```
 
-Open http://127.0.0.1:5001. The backend crawls once on startup, then every
-`POLL_SECONDS` (default 120).
+Open http://127.0.0.1:5001. The browser polls `/api/finds` every 20 seconds;
+the backend fetches listings on demand.
 
 ## How it works
 
-- **`craigslist.py`** — one request per poll to `sapi.craigslist.org` for the `zip`
-  (free) category in Vancouver. Coordinates and image ids come back inline; no page
-  scraping. Verified: ~360 postings/poll, 100% geocoded, ~92% with photos.
+- **`craigslist.py`** — searches the `zip` (free) category via `sapi.craigslist.org`,
+  defaulting to Vancouver. A new center requires a region/unit discovery request;
+  resolved metadata is cached for up to 128 centers. Listings are fetched each poll.
+  Coordinates and image IDs come back inline; no search-page scraping.
+- **`finds.py`** — shared query validation, classified payload, and API errors.
 - **`classify.py`** — title keywords → category + emoji glyph for the pin.
 - **`app.py`** — local Flask dev server; `GET /api/finds` returns the current finds.
 - **`api/finds.py`** — the same payload as a Vercel serverless function.
 - **`static/`** — Leaflet map (key-free OSM tiles inverted to dark), animated pins,
   cursor flashlight, listing card, `localStorage` stash + first-seen freshness,
-  category + radius filters. Freshness thresholds (`FRESH_MS`, `WARM_MS`) live here.
+  center selection, category + radius filters. `search.js` handles saved settings
+  and superseded requests. Freshness thresholds (`FRESH_MS`, `WARM_MS`) live here.
+
+## Search center and radius
+
+Click **Choose center**, then click a point on the map. **Escape** cancels selection;
+ordinary panning leaves the search center unchanged. Adjust the **1–25 km** radius
+slider to update the circle and search around that point. **Reset** restores the
+original Vancouver center and initial 10 km radius. Center and radius are remembered
+across reloads when browser storage is available.
+
+The backend resolves the target Craigslist region and converts kilometers to miles
+where required. The browser also filters by distance because the source can include
+nearby results beyond the requested radius. Searches retain the source's 360-item
+batch limit. Unsupported locations show an error; coverage depends on Craigslist.
+
+Both API entry points accept `/api/finds?lat=...&lon=...&radius_km=...`. Coordinates
+must be supplied together and be finite/in range; radius must be 1–25 km. Requests
+without parameters retain the original Vancouver center and 25 km API radius.
+Invalid input returns 400, unsupported locations 422, and source failures 502.
+A failed refresh keeps the last successful results for the same selection.
 
 ## Freshness model — honest caveat
 
@@ -57,11 +79,25 @@ vercel deploy --prod --yes
 ```
 
 `vercel.json` maps `/` to `static/index.html` and bundles `craigslist.py` +
-`classify.py` with the function. The custom domain `craigslistmap.lettergen.io`
+`classify.py` + `finds.py` with the function. The custom domain `craigslistmap.lettergen.io`
 is attached to the project. Note: the project's `*.vercel.app` URL is behind
 Vercel Deployment Protection (login-gated); the custom domain is public.
 
 ## Tests / verification
+
+Offline tests (Python dependencies from `requirements.txt`; Node.js 18+ for the
+JavaScript tests, with no npm dependencies):
+
+```bash
+python -m pytest -q
+node --test tests/search.test.cjs tests/app.test.cjs
+```
+
+Python tests cover both API entry points, validation, unit conversion, and coverage
+fallback using synthetic fixtures. JavaScript tests cover storage, radius geometry,
+request ordering, and map integration through lightweight DOM/Leaflet adapters.
+
+The existing browser checks require a running server and Playwright:
 
 ```bash
 ./.venv/bin/python tests/verify_ui.py          # headless-browser UI checks (needs a server)

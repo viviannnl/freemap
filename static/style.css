@@ -162,3 +162,42 @@ body.torch #flashlight{opacity:1}
   background:var(--panel);border:1px solid rgba(255,209,102,.3);border-radius:999px;padding:10px 18px;
   font-size:13px;font-weight:600;opacity:0;transition:.3s;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 .toast.show{opacity:1;transform:translateX(-50%)}
+
+/* Search controls reuse the existing chip palette and leave the map theme intact. */
+.search-controls{position:fixed;top:84px;left:22px;z-index:510;max-width:calc(100% - 185px);
+  background:rgba(10,16,28,.9);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.search-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.search-actions button{font-family:inherit}
+.center-coords{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.search-status{font-size:11px;color:var(--muted);margin-top:7px;max-width:420px}
+.choosing-center,.choosing-center .leaflet-interactive{cursor:crosshair!important}
+.choosing-center .leaflet-marker-icon{pointer-events:none!important}
+.live[data-status="error"]{color:#ef9b85;border-color:rgba(239,155,133,.3)}
+.live[data-status="error"] .blip{background:#ef9b85;box-shadow:none}
+.live[data-status="loading"] .blip{background:var(--gold);box-shadow:none}
+@media(max-width:1100px){
+  .topbar{height:auto;min-height:72px;flex-wrap:wrap;gap:10px;padding:12px 18px}
+  .topbar>div:first-child{flex:1;white-space:nowrap}
+  .chips{order:3;width:100%;margin-left:0;overflow-x:auto;flex-shrink:0;padding-bottom:2px}
+  .chip{white-space:nowrap;flex-shrink:0}
+  .spacer{display:none}
+  .search-controls{top:124px}
+  .stashbtn{top:124px}
+  .stash{top:112px}
+  .card{top:214px;max-height:calc(100vh - 240px);overflow-y:auto}
+}
+@media(max-width:600px){
+  .topbar{display:grid;grid-template-columns:1fr auto;gap:8px;padding:10px 12px}
+  .topbar>div:first-child{white-space:normal}
+  .sub{display:block;margin-left:0;font-size:11px}
+  .live{grid-column:2;grid-row:1;font-size:11px;padding:6px 8px}
+  .chips{grid-column:1/-1;grid-row:2;width:100%;max-width:calc(100vw - 24px)}
+  .radius{grid-column:1/-1;grid-row:3;width:100%}
+  .search-controls{top:164px;left:12px;right:12px;max-width:none}
+  .search-status{font-size:10px}
+  .stashbtn{top:260px;right:12px;padding:7px 12px}
+  .stash{top:252px;max-width:calc(100% - 24px)}
+  .card{top:250px;width:calc(100% - 24px);max-width:340px;max-height:calc(100vh - 265px)}
+  .legend{left:12px;bottom:14px;padding:10px 12px}
+  .count{left:12px;bottom:174px;font-size:11px;background:rgba(10,16,28,.85);padding:4px 8px;border-radius:8px}
+}
