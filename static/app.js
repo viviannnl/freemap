@@ -1,4 +1,4 @@
-/* FreeMap frontend: a live, animated treasure map of Vancouver free stuff.
+/* FreeMap frontend: a live, animated treasure map of free stuff.
  *
  * The server is stateless - it just returns the current set of free postings.
  * All the liveliness is computed here by diffing successive polls:
@@ -15,14 +15,20 @@ const FRESH_MS = 30 * 60 * 1000;   // < 30 min -> just dropped (gold, pulsing)
 const WARM_MS = 3 * 60 * 60 * 1000; // < 3 h -> a few hours old (amber); older -> cool
 const SEEN_TTL_MS = 24 * 60 * 60 * 1000; // forget postings unseen this long
 
+const storage = FreeMapSearch.getStorage(window);
+const savedSearch = FreeMapSearch.loadSettings(storage);
+const searches = new FreeMapSearch.LatestSearch();
 const state = {
   markers: new Map(),   // id -> {marker, find}
   finds: new Map(),     // id -> find (lookup cache for card/stash)
   lastLive: [],         // most recent crawl result (drives reflow on filter change)
   crawlIds: new Set(),  // ids present in the most recent crawl (present vs vanished)
   cat: 'all',
-  radiusKm: 10,
-  center: { lat: 49.2606, lon: -123.1140 },
+  radiusKm: savedSearch.radiusKm,
+  center: { lat: savedSearch.lat, lon: savedSearch.lon },
+  observedIds: new Set(), // only postings observed in the current search scope
+  selectingCenter: false,
+  loadingSelection: null,
   first: true,
   firstDone: false,
   stash: loadStash(),
@@ -30,8 +36,8 @@ const state = {
 };
 
 /* ---- first-seen store (localStorage) ---- */
-function loadSeen() { try { return JSON.parse(localStorage.getItem('freemap.seen') || '{}'); } catch { return {}; } }
-function saveSeen() { localStorage.setItem('freemap.seen', JSON.stringify(seen)); }
+function loadSeen() { try { return JSON.parse(storage.getItem('freemap.seen') || '{}'); } catch { return {}; } }
+function saveSeen() { try { storage?.setItem('freemap.seen', JSON.stringify(seen)); } catch { /* Storage is optional. */ } }
 let seen = loadSeen();
 function ageMs(id, now) { return now - (seen[id] || now); }
 function statusOf(id, now) {
@@ -55,16 +61,10 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 /* ---- geometry ---- */
-function haversineKm(a, b, c, d) {
-  const R = 6371, r = Math.PI / 180;
-  const dp = (c - a) * r, dl = (d - b) * r;
-  const x = Math.sin(dp / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin(dl / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(x));
-}
-function distKm(f) { return haversineKm(state.center.lat, state.center.lon, f.lat, f.lon); }
+function distKm(f) { return FreeMapSearch.distanceKm(state.center, f); }
 function eligible(f) {
   if (state.cat !== 'all' && f.category !== state.cat) return false;
-  return distKm(f) <= state.radiusKm;
+  return FreeMapSearch.withinRadius(selection(), f);
 }
 // Craigslist geocodes many free posts to the same neighbourhood centroid, so pins
 // stack. Fan them out by a small deterministic per-id offset (~<90 m), display only.
@@ -98,6 +98,7 @@ function render(finds) {
   state.crawlIds = new Set(finds.map(f => f.id));
   // remember first sight + compute freshness for everything in this crawl
   finds.forEach(f => {
+    state.observedIds.add(f.id);
     if (!seen[f.id]) seen[f.id] = now;
     f.age_min = Math.round(ageMs(f.id, now) / 60000);
     f.status = statusOf(f.id, now);
@@ -111,6 +112,11 @@ function render(finds) {
   // add or update
   next.forEach((f, id) => {
     const existing = state.markers.get(id);
+    if (existing && existing.removalTimer) {
+      clearTimeout(existing.removalTimer);
+      existing.removalTimer = null;
+      existing.marker._icon?.querySelector('.pin')?.classList.remove('shattering');
+    }
     if (!existing) {
       const marker = L.marker(jittered(f), { icon: pinIcon(f) }).addTo(map);
       marker.on('click', () => openCard(id));
@@ -134,7 +140,10 @@ function render(finds) {
     const el = m.marker._icon && m.marker._icon.querySelector('.pin');
     if (vanished && el) {
       el.classList.add('shattering');
-      setTimeout(() => { map.removeLayer(m.marker); state.markers.delete(id); }, 600);
+      m.removalTimer = setTimeout(() => {
+        map.removeLayer(m.marker);
+        if (state.markers.get(id) === m) state.markers.delete(id);
+      }, 600);
     } else {
       map.removeLayer(m.marker);
       state.markers.delete(id);
@@ -155,10 +164,15 @@ function pruneSeen(now) {
 }
 
 async function poll() {
+  const selected = selection();
+  const key = FreeMapSearch.requestUrl(selected);
+  if (state.loadingSelection?.key === key) return;
+  const pending = { key };
+  state.loadingSelection = pending;
+  setSearchStatus('Updating finds…', 'loading');
   try {
-    const r = await fetch('/api/finds');
-    const data = await r.json();
-    if (data.center) state.center = data.center;
+    const data = await searches.run(selected);
+    if (!data) return;
     const prevIds = new Set(state.markers.keys());
     render(data.finds || []);
     const newOnes = [...state.markers.keys()].filter(id => !prevIds.has(id));
@@ -168,8 +182,84 @@ async function poll() {
       if (f) toast(`${f.glyph} New drop: ${f.title.slice(0, 30)}`);
     }
     renderStash();
-  } catch (e) { console.warn('poll failed', e); }
+    document.getElementById('locationLabel').textContent = `${data.region.name} · free stuff, live`;
+    setSearchStatus(state.markers.size ? 'Live · distances from selected center' : 'No finds in this radius · try a wider search', 'live');
+  } catch (e) {
+    console.warn('poll failed', e);
+    setSearchStatus(e.message, 'error');
+  } finally {
+    if (state.loadingSelection === pending) state.loadingSelection = null;
+  }
 }
+
+/* ---- selected center ---- */
+function selection() { return { ...state.center, radiusKm: state.radiusKm }; }
+function setSearchStatus(message, status) {
+  if (state.selectingCenter) return;
+  document.getElementById('searchStatus').textContent = message;
+  const live = document.getElementById('liveStatus');
+  live.dataset.status = status;
+  document.getElementById('liveLabel').textContent = status === 'error' ? 'Retrying' : status === 'loading' ? 'Updating' : 'Live';
+}
+const centerButton = document.getElementById('chooseCenter');
+const centerMarker = L.circleMarker([state.center.lat, state.center.lon], {
+  radius: 7, color: '#FFD166', fillColor: '#0a0f1c', fillOpacity: 1, weight: 3,
+  interactive: false,
+}).addTo(map);
+function showSelectedCenter() {
+  centerMarker.setLatLng([state.center.lat, state.center.lon]);
+  document.getElementById('centerCoords').textContent = `${state.center.lat.toFixed(4)}, ${state.center.lon.toFixed(4)}`;
+  drawRing();
+}
+function setSelectingCenter(active) {
+  state.selectingCenter = active;
+  if (active) card.classList.remove('open');
+  centerButton.classList.toggle('on', active);
+  centerButton.setAttribute('aria-pressed', String(active));
+  centerButton.textContent = active ? 'Cancel selection' : 'Choose center';
+  document.getElementById('map').classList.toggle('choosing-center', active);
+  document.getElementById('searchStatus').textContent = active ? 'Click the map to set center · Esc to cancel' : 'Distances from selected center';
+}
+function beginSearch() {
+  clearTimeout(radiusTimer);
+  searches.cancel();
+  state.loadingSelection = null;
+  state.markers.forEach(m => { clearTimeout(m.removalTimer); map.removeLayer(m.marker); });
+  state.markers.clear();
+  state.lastLive = [];
+  state.crawlIds.clear();
+  state.observedIds.clear();
+  state.first = true;
+  state.firstDone = false;
+  document.getElementById('countN').textContent = '0';
+  card.classList.remove('open');
+  FreeMapSearch.saveSettings(storage, selection());
+  showSelectedCenter();
+  renderStash();
+  poll();
+}
+centerButton.addEventListener('click', () => setSelectingCenter(!state.selectingCenter));
+map.on('click', event => {
+  if (!state.selectingCenter) return;
+  // Leaflet wraps world copies when users pan; keep longitude in the API range.
+  state.center = { lat: event.latlng.lat, lon: ((event.latlng.lng + 180) % 360 + 360) % 360 - 180 };
+  document.getElementById('locationLabel').textContent = 'Selected center · free stuff, live';
+  setSelectingCenter(false);
+  beginSearch();
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && state.selectingCenter) setSelectingCenter(false);
+});
+document.getElementById('resetSearch').addEventListener('click', () => {
+  setSelectingCenter(false);
+  state.center = { lat: FreeMapSearch.DEFAULTS.lat, lon: FreeMapSearch.DEFAULTS.lon };
+  state.radiusKm = FreeMapSearch.DEFAULTS.radiusKm;
+  radiusInput.value = state.radiusKm;
+  document.getElementById('radiusLabel').textContent = `${state.radiusKm} km`;
+  document.getElementById('locationLabel').textContent = 'Vancouver · free stuff, live';
+  map.setView([state.center.lat, state.center.lon], 12);
+  beginSearch();
+});
 
 /* ---- radius ring ---- */
 function drawRing() {
@@ -183,15 +273,23 @@ function drawRing() {
 /* ---- filters ---- */
 document.getElementById('chips').addEventListener('click', e => {
   const chip = e.target.closest('.chip'); if (!chip) return;
-  document.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === chip));
+  document.querySelectorAll('#chips .chip').forEach(c => c.classList.toggle('on', c === chip));
   state.cat = chip.dataset.cat;
   render(state.lastLive);
 });
 const radiusInput = document.getElementById('radius');
+let radiusTimer = null;
+radiusInput.value = state.radiusKm;
+document.getElementById('radiusLabel').textContent = `${state.radiusKm} km`;
 radiusInput.addEventListener('input', () => {
   state.radiusKm = +radiusInput.value;
   document.getElementById('radiusLabel').textContent = `${state.radiusKm} km`;
   drawRing(); render(state.lastLive);
+  searches.cancel();
+  state.loadingSelection = null;
+  FreeMapSearch.saveSettings(storage, selection());
+  clearTimeout(radiusTimer);
+  radiusTimer = setTimeout(beginSearch, 350);
 });
 
 /* ---- listing card ---- */
@@ -243,8 +341,8 @@ document.getElementById('cardClose').onclick = () => card.classList.remove('open
 document.getElementById('cardHeart').onclick = () => { if (cardId) toggleStash(cardId); };
 
 /* ---- stash (localStorage) ---- */
-function loadStash() { try { return JSON.parse(localStorage.getItem('freemap.stash') || '[]'); } catch { return []; } }
-function saveStash() { localStorage.setItem('freemap.stash', JSON.stringify(state.stash)); }
+function loadStash() { try { return JSON.parse(storage.getItem('freemap.stash') || '[]'); } catch { return []; } }
+function saveStash() { try { storage?.setItem('freemap.stash', JSON.stringify(state.stash)); } catch { /* Saving still works for this session. */ } }
 function inStash(id) { return state.stash.some(s => s.id === id); }
 function toggleStash(id) {
   const f = state.finds.get(id); if (!f) return;
@@ -263,7 +361,7 @@ function renderStash() {
   }
   list.innerHTML = state.stash.map(s => {
     const live = state.finds.get(s.id);
-    const goneNow = live && !state.crawlIds.has(s.id);
+    const goneNow = state.observedIds.has(s.id) && !state.crawlIds.has(s.id);
     const meta = goneNow ? '<span style="color:#e06a6a">💨 likely gone</span>'
       : (live ? ageText(live) : 'saved');
     const bg = s.thumb ? `style="background-image:url('${s.thumb}')"` : '';
@@ -319,7 +417,7 @@ function toast(msg) {
 }
 
 /* ---- go ---- */
-drawRing();
+showSelectedCenter();
 renderStash();
 poll();
 setInterval(poll, POLL_MS);

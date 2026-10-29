@@ -104,7 +104,7 @@
   <div id="flashlight"></div>
 
   <div class="topbar">
-    <div><span class="logo">Free<span class="m">Map</span></span><span class="sub">Vancouver · free stuff, live</span></div>
+    <div><span class="logo">Free<span class="m">Map</span></span><span class="sub" id="locationLabel">Vancouver · free stuff, live</span></div>
     <div class="chips" id="chips">
       <div class="chip on" data-cat="all">All finds</div>
       <div class="chip" data-cat="furniture">🪑 Furniture</div>
@@ -116,9 +116,18 @@
     <div class="spacer"></div>
     <div class="radius">
       <div class="lbl"><span>Search radius</span><b id="radiusLabel">10 km</b></div>
-      <input type="range" id="radius" min="1" max="25" value="10">
+      <input type="range" id="radius" min="1" max="25" value="10" aria-label="Search radius in kilometers">
     </div>
-    <div class="live"><span class="blip"></span>Live</div>
+    <div class="live" id="liveStatus" data-status="loading"><span class="blip"></span><span id="liveLabel">Updating</span></div>
+  </div>
+
+  <div class="search-controls">
+    <div class="search-actions">
+      <button class="chip" id="chooseCenter" aria-pressed="false">Choose center</button>
+      <button class="chip" id="resetSearch" title="Restore the Vancouver default center and 10 km radius">Reset</button>
+      <span class="center-coords" id="centerCoords" aria-label="Selected center coordinates"></span>
+    </div>
+    <div class="search-status" id="searchStatus" role="status" aria-live="polite">Updating finds…</div>
   </div>
 
   <button class="stashbtn" id="stashBtn">🎒 Stash <span class="n" id="stashN">0</span></button>
@@ -156,6 +165,7 @@
   <div class="toast" id="toast"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/static/search.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

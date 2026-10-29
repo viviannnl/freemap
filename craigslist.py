@@ -1,4 +1,4 @@
-"""Craigslist free-stuff search for Vancouver.
+"""Craigslist free-stuff search, defaulting to Vancouver.
 
 Craigslist has no public API. The web UI is a JS app that talks to an internal
 JSON endpoint (sapi.craigslist.org); one request per poll returns every current
@@ -36,6 +36,7 @@ than raises when a field is missing.
 import logging
 import math
 import re
+from functools import lru_cache
 from urllib.parse import urlparse
 
 import requests
@@ -49,15 +50,15 @@ UA = (
 )
 BATCH_SIZE = 360
 
-# Vancouver, BC / city of Vancouver. Free stuff is worth travelling for, so the
-# default coverage radius is wide - but note the 360-item cap: a smaller radius
-# reaches further back in time. See the module docstring in rental-watcher.
+# Original Vancouver defaults. Coordinates in a search let Craigslist resolve
+# the target region; its returned distanceUnits determine km/mile conversion.
 AREA_ID = 16
 SUBAREA_ID = 1
 CATEGORY = "zip"  # free
 CENTER_LAT = 49.2606
 CENTER_LON = -123.1140
 RADIUS_KM = 25
+KM_PER_MILE = 1.609344
 
 TAG_IMAGES = 4
 TAG_SLUG = 6
@@ -158,39 +159,108 @@ def parse_item(item, locs=None):
     }
 
 
-def crawl(lat=None, lon=None, radius_km=None):
-    """Every current free posting in the covered area, newest first.
+class UnsupportedLocation(ValueError):
+    """The source could not honor the requested geographic center."""
 
-    Carries no per-view filters: radius, category glyph and freshness are decided
-    later. One request serves every viewer. Returns rows without freshness; that
-    is a property of when we first saw a posting, filled in by the store.
-    """
-    params = {
-        "areaId": AREA_ID,
-        "subAreaId": SUBAREA_ID,
-        "batch": f"{AREA_ID}-0-{BATCH_SIZE}-1-0",
-        "cc": "CA",
+
+class UpstreamError(RuntimeError):
+    """The source returned an unusable response."""
+
+
+def _params(lat, lon, distance, area_id=AREA_ID, country="CA"):
+    return {
+        "areaId": area_id,
+        "batch": f"{area_id}-0-{BATCH_SIZE}-1-0",
+        "cc": country,
         "lang": "en",
         "searchPath": CATEGORY,
         "sort": "date",
-        "lat": CENTER_LAT if lat is None else lat,
-        "lon": CENTER_LON if lon is None else lon,
-        "search_distance": RADIUS_KM if radius_km is None else radius_km,
+        "lat": lat,
+        "lon": lon,
+        "search_distance": distance,
     }
+
+
+def _request_data(params):
     resp = requests.get(
         SAPI, params=params,
         headers={"User-Agent": UA, "Accept": "application/json"}, timeout=30,
     )
     resp.raise_for_status()
-    data = resp.json().get("data", {})
+    try:
+        payload = resp.json()
+        data = payload["data"]
+        if payload.get("errors") or not isinstance(data.get("items"), list):
+            raise UpstreamError("Invalid Craigslist search response")
+        return data
+    except (ValueError, KeyError, TypeError, AttributeError) as exc:
+        raise UpstreamError("Invalid Craigslist search response") from exc
+
+
+def _checked_region(data, lat, lon):
+    try:
+        location = data["location"]
+        actual_lat, actual_lon = float(location["lat"]), float(location["lon"])
+        if (not math.isfinite(actual_lat) or not math.isfinite(actual_lon)
+                or haversine_m(lat, lon, actual_lat, actual_lon) > 1000):
+            raise UnsupportedLocation("Craigslist does not cover this search center.")
+        area_id = int(location["areaId"])
+        # Sparse searches may omit the target area from `areas`, even when the
+        # feed appends nearby items. The active distance filter still names units.
+        unit = next((entry.get("name") for entry in data.get("humanReadableParams", [])
+                     if entry.get("key") == "search_distance"), None)
+        if unit is None:
+            unit = data.get("areas", {}).get(str(area_id), {}).get("distanceUnits")
+        if unit not in ("km", "mi"):
+            raise UpstreamError("Unknown Craigslist distance unit")
+        return {"area_id": area_id, "country": location["country"],
+                "name": location["city"], "distance_unit": unit}
+    except UnsupportedLocation:
+        raise
+    except (KeyError, ValueError, TypeError, OverflowError) as exc:
+        raise UpstreamError("Missing Craigslist region metadata") from exc
+
+
+@lru_cache(maxsize=128)
+def resolve_region(lat, lon):
+    """Bounded metadata-only cache. The source resolves regions from coordinates.
+
+    A valid seed area/batch is required, even for a geographic search. Discover
+    target units first; cc alone does not control the response's distance units.
+    """
+    if lat == CENTER_LAT and lon == CENTER_LON:
+        return {"area_id": AREA_ID, "country": "CA", "name": "Vancouver", "distance_unit": "km"}
+    return _checked_region(_request_data(_params(lat, lon, 1)), lat, lon)
+
+
+def search(lat=None, lon=None, radius_km=None):
+    """Return parsed rows and region metadata for the selected geographic search."""
+    lat = CENTER_LAT if lat is None else lat
+    lon = CENTER_LON if lon is None else lon
+    radius_km = RADIUS_KM if radius_km is None else radius_km
+    region = resolve_region(lat, lon)
+    distance = radius_km / KM_PER_MILE if region["distance_unit"] == "mi" else radius_km
+    params = _params(lat, lon, distance, region["area_id"], region["country"])
+    if lat == CENTER_LAT and lon == CENTER_LON:
+        params["subAreaId"] = SUBAREA_ID
+    data = _request_data(params)
+    actual_region = _checked_region(data, lat, lon)
+    if actual_region["distance_unit"] != region["distance_unit"]:
+        resolve_region.cache_clear()
+        raise UpstreamError("Craigslist region changed; please retry")
     items = data.get("items", [])
     locs = (data.get("decode") or {}).get("locationDescriptions")
     parsed = [p for p in (parse_item(raw, locs) for raw in items) if p]
     log.info(
-        "crawl: %d free postings within %s km (%d of %d items had no coords)",
-        len(parsed), params["search_distance"], len(items) - len(parsed), len(items),
+        "crawl: %d free postings for %s %s search at %.4f,%.4f (%d unparseable)",
+        len(parsed), distance, region["distance_unit"], lat, lon, len(items) - len(parsed),
     )
-    return parsed
+    return parsed, actual_region
+
+
+def crawl(lat=None, lon=None, radius_km=None):
+    """Preserve the original list-returning interface for scripts."""
+    return search(lat, lon, radius_km)[0]
 
 
 _DATETIME_RE = re.compile(r'datetime="([^"]+)"')

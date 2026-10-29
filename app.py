@@ -14,7 +14,7 @@ import os
 from flask import Flask, jsonify, request, send_from_directory
 
 import craigslist
-from classify import classify
+from finds import build_payload as crawl_payload, search_response
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -23,24 +23,10 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, static_folder="static")  # static served at /static/*
 
 
-def crawl_payload():
-    rows = craigslist.crawl()
-    finds = []
-    for r in rows:
-        category, glyph = classify(r["title"])
-        finds.append({
-            "id": r["cl_id"], "title": r["title"], "url": r["url"],
-            "thumb": r["thumb"], "lat": r["lat"], "lon": r["lon"],
-            "neighborhood": r.get("neighborhood"),
-            "category": category, "glyph": glyph,
-        })
-    return {"center": {"lat": craigslist.CENTER_LAT, "lon": craigslist.CENTER_LON},
-            "finds": finds}
-
-
 @app.route("/api/finds")
 def finds():
-    return jsonify(crawl_payload())
+    payload, status = search_response(request.args.to_dict(flat=False))
+    return jsonify(payload), status
 
 
 @app.route("/api/posted")
